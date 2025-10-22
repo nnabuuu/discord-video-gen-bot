@@ -34,7 +34,7 @@ export class VeoService {
         resolution: params.resolution,
         generateAudio: params.generateAudio,
         sampleCount: params.sampleCount,
-        outputGcsUri: outputStorageUri,
+        storageUri: outputStorageUri,
       },
     };
 
@@ -141,19 +141,66 @@ export class VeoService {
     }
   }
 
+  private async checkOperationStatus(operationName: string): Promise<{ done: boolean; response?: any; error?: any }> {
+    try {
+      const token = await this.authService.getAccessToken();
+      const operationUrl = `https://us-central1-aiplatform.googleapis.com/v1/${operationName}`;
+
+      logger.debug({ operationUrl }, 'Checking operation status');
+
+      const response = await fetch(operationUrl, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.warn({
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText.substring(0, 200),
+        }, 'Operation status check failed');
+
+        // If operation endpoint doesn't exist (404), return not done
+        if (response.status === 404) {
+          logger.info('Operation endpoint returned 404 - using GCS polling only');
+          return { done: false };
+        }
+        return { done: false };
+      }
+
+      const result = await response.json();
+      logger.info({
+        done: result.done,
+        hasResponse: !!result.response,
+        hasError: !!result.error,
+      }, 'Operation status checked');
+
+      return {
+        done: result.done || false,
+        response: result.response,
+        error: result.error,
+      };
+    } catch (error) {
+      logger.warn({
+        error: error instanceof Error ? error.message : String(error),
+      }, 'Failed to check operation status - using GCS polling');
+      return { done: false };
+    }
+  }
+
   async pollOperation(
     operationName: string,
     gcsPrefix: string,
     onProgress?: (progress: number) => Promise<void>,
   ): Promise<VeoOperation> {
-    // Veo predictLongRunning doesn't support standard operation polling
-    // Instead, it writes results directly to GCS asynchronously
-    // We poll GCS to check when files appear
-
+    // Try standard operation polling first, fall back to GCS checking if it fails
     const startTime = Date.now();
     let pollInterval = INITIAL_POLL_INTERVAL_MS;
 
-    logger.info({ operationName, gcsPrefix }, 'Polling GCS for Veo generation results');
+    logger.info({ operationName, gcsPrefix }, 'Polling operation for Veo generation results');
 
     while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
       try {
@@ -173,7 +220,29 @@ export class VeoService {
           }
         }
 
-        // Check if any .mp4 files exist in the GCS prefix
+        // Try standard operation polling first
+        const operationStatus = await this.checkOperationStatus(operationName);
+        if (operationStatus.done) {
+          logger.info({ operationName, operationStatus }, 'Operation completed via polling');
+
+          // Call final progress update (100%)
+          if (onProgress) {
+            try {
+              await onProgress(1.0);
+            } catch (error) {
+              logger.warn({ error }, 'Final progress callback failed');
+            }
+          }
+
+          return {
+            name: operationName,
+            done: true,
+            response: operationStatus.response,
+            error: operationStatus.error,
+          };
+        }
+
+        // Fallback: Check if any .mp4 files exist in the GCS prefix
         const files = await this.checkGcsFiles(gcsPrefix);
 
         if (files.length > 0) {

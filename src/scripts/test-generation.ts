@@ -27,7 +27,7 @@ async function bootstrap() {
   // Parse command line arguments
   const args = process.argv.slice(2);
   const prompt = args[0] || 'A serene ocean sunset with gentle waves';
-  const length = parseInt(args[1] || '8', 10);
+  const length = (parseInt(args[1] || '8', 10) as 4 | 6 | 8);
   const ratio = (args[2] || '16:9') as '16:9' | '9:16';
   const hd = args[3] !== 'false';
   const audio = args[4] !== 'false';
@@ -44,8 +44,9 @@ async function bootstrap() {
     // Generate unique request ID
     const requestId = crypto.randomUUID();
     const gcsPrefix = `test/${requestId}/`;
+    const outputUri = storageService.buildOutputUri(gcsPrefix);
 
-    log.info({ requestId, gcsPrefix }, '📁 Using GCS prefix');
+    log.info({ requestId, gcsPrefix, outputUri }, '📁 Using GCS prefix');
 
     // Start generation
     const operationName = await veoService.startGeneration(
@@ -57,7 +58,7 @@ async function bootstrap() {
         generateAudio: audio,
         sampleCount: 1,
       },
-      gcsPrefix,
+      outputUri,
     );
 
     log.info({ operationName }, '⏳ Generation started, polling for results...');

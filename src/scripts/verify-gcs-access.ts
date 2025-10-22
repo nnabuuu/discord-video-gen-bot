@@ -128,6 +128,27 @@ async function bootstrap() {
     log.info(`  ✅ Public Access Mode: ${publicAccessMode}`);
     log.info(`  ✅ Read/Write/List/Delete: OK`);
 
+    // Check Vertex AI service account permissions
+    const projectId = process.env.GCP_PROJECT_ID;
+    log.info('');
+    log.info('8️⃣ Checking Vertex AI service account permissions...');
+
+    if (projectId) {
+      log.info('Run these commands to verify Vertex AI can write to the bucket:');
+      log.info('');
+      log.info(`  gcloud projects describe ${projectId} --format="value(projectNumber)"`);
+      log.info('  # Copy the project number from above, then run:');
+      log.info(`  gsutil iam get gs://${bucketName} | grep "service-PROJECT_NUMBER@vertex-ai"`);
+      log.info('');
+      log.info('If not found, grant access with:');
+      log.info('');
+      log.info(`  gcloud storage buckets add-iam-policy-binding gs://${bucketName} \\`);
+      log.info('    --member="serviceAccount:service-PROJECT_NUMBER@vertex-ai.iam.gserviceaccount.com" \\');
+      log.info('    --role="roles/storage.objectAdmin"');
+    } else {
+      log.warn('⚠️ GCP_PROJECT_ID not set in .env - cannot show project-specific commands');
+    }
+
   } catch (error) {
     log.error({ error }, '❌ GCS access verification failed');
     log.error('');
