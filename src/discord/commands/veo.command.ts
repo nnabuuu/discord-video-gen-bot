@@ -220,7 +220,7 @@ export class VeoCommand {
         completionEmbed.setURL(publicUrls[0]);
       }
 
-      const videoLinks = publicUrls.map((url, idx) => `[Video ${idx + 1}](${url})`).join(' • ');
+      const videoLinks = publicUrls.map((url) => url).join('\n');
 
       await interaction.editReply({
         content: videoLinks,
