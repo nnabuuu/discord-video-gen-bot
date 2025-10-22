@@ -9,12 +9,12 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { VeoService } from '../veo/veo.service';
 import { StorageService } from '../storage/storage.service';
-import { Logger } from '../common/logger';
+import { logger } from '../common/logger';
 
 async function bootstrap() {
-  const logger = Logger.child({ context: 'TestGeneration' });
+  const log = logger.child({ context: 'TestGeneration' });
 
-  logger.info('🚀 Starting local video generation test...');
+  log.info('🚀 Starting local video generation test...');
 
   // Create NestJS application context
   const app = await NestFactory.createApplicationContext(AppModule, {
@@ -32,7 +32,7 @@ async function bootstrap() {
   const hd = args[3] !== 'false';
   const audio = args[4] !== 'false';
 
-  logger.info({
+  log.info({
     prompt,
     length,
     ratio,
@@ -45,7 +45,7 @@ async function bootstrap() {
     const requestId = crypto.randomUUID();
     const gcsPrefix = `test/${requestId}/`;
 
-    logger.info({ requestId, gcsPrefix }, '📁 Using GCS prefix');
+    log.info({ requestId, gcsPrefix }, '📁 Using GCS prefix');
 
     // Start generation
     const operationName = await veoService.startGeneration(
@@ -60,7 +60,7 @@ async function bootstrap() {
       gcsPrefix,
     );
 
-    logger.info({ operationName }, '⏳ Generation started, polling for results...');
+    log.info({ operationName }, '⏳ Generation started, polling for results...');
 
     // Poll for completion with progress updates
     await veoService.pollOperation(
@@ -69,40 +69,40 @@ async function bootstrap() {
       async (progress) => {
         const percentage = Math.round(progress * 100);
         const progressBar = createProgressBar(progress);
-        logger.info(`${progressBar} ${percentage}% complete`);
+        log.info(`${progressBar} ${percentage}% complete`);
       },
     );
 
-    logger.info('✅ Generation complete! Listing files...');
+    log.info('✅ Generation complete! Listing files...');
 
     // List generated files
     const files = await storageService.listFiles(gcsPrefix);
 
     if (files.length === 0) {
-      logger.error('❌ No files found after completion');
+      log.error('❌ No files found after completion');
       process.exit(1);
     }
 
-    logger.info({ fileCount: files.length }, '📹 Found video files');
+    log.info({ fileCount: files.length }, '📹 Found video files');
 
     // Make files public and get URLs
     const urls: string[] = [];
     for (const file of files) {
       if (file.endsWith('.mp4')) {
         await storageService.makePublic(file);
-        const url = storageService.getPublicUrl(file);
+        const url = storageService.publicUrl(file);
         urls.push(url);
-        logger.info({ file, url }, '🔗 Public URL generated');
+        log.info({ file, url }, '🔗 Public URL generated');
       }
     }
 
-    logger.info('🎉 Test generation complete!');
-    logger.info(`Generated ${urls.length} video(s):`);
+    log.info('🎉 Test generation complete!');
+    log.info(`Generated ${urls.length} video(s):`);
     urls.forEach((url, i) => {
       console.log(`  ${i + 1}. ${url}`);
     });
   } catch (error) {
-    logger.error({ error }, '❌ Generation failed');
+    log.error({ error }, '❌ Generation failed');
     process.exit(1);
   } finally {
     await app.close();

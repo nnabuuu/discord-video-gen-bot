@@ -8,12 +8,12 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { StorageService } from '../storage/storage.service';
-import { Logger } from '../common/logger';
+import { logger } from '../common/logger';
 
 async function bootstrap() {
-  const logger = Logger.child({ context: 'VerifyGCS' });
+  const log = logger.child({ context: 'VerifyGCS' });
 
-  logger.info('🔍 Verifying GCS bucket access...');
+  log.info('🔍 Verifying GCS bucket access...');
 
   // Create NestJS application context
   const app = await NestFactory.createApplicationContext(AppModule, {
@@ -27,116 +27,116 @@ async function bootstrap() {
     const testPrefix = `test-access-${Date.now()}/`;
     const testFileName = `${testPrefix}test.txt`;
 
-    logger.info({ bucketName }, '📦 Bucket name');
+    log.info({ bucketName }, '📦 Bucket name');
 
     // Test 1: Check if bucket exists
-    logger.info('1️⃣ Checking if bucket exists...');
+    log.info('1️⃣ Checking if bucket exists...');
     const [bucketExists] = await storageService['bucket'].exists();
     if (!bucketExists) {
-      logger.error('❌ Bucket does not exist');
+      log.error('❌ Bucket does not exist');
       process.exit(1);
     }
-    logger.info('✅ Bucket exists');
+    log.info('✅ Bucket exists');
 
     // Test 2: Get bucket metadata
-    logger.info('2️⃣ Getting bucket metadata...');
+    log.info('2️⃣ Getting bucket metadata...');
     const [metadata] = await storageService['bucket'].getMetadata();
-    logger.info({
+    log.info({
       location: metadata.location,
       storageClass: metadata.storageClass,
       uniformBucketLevelAccess: metadata.iamConfiguration?.uniformBucketLevelAccess?.enabled,
     }, '📋 Bucket metadata');
 
     // Test 3: Test write permissions
-    logger.info('3️⃣ Testing write permissions...');
+    log.info('3️⃣ Testing write permissions...');
     const file = storageService['bucket'].file(testFileName);
     await file.save('test content', {
       metadata: {
         contentType: 'text/plain',
       },
     });
-    logger.info({ testFileName }, '✅ Write permission OK');
+    log.info({ testFileName }, '✅ Write permission OK');
 
     // Test 4: Test read permissions
-    logger.info('4️⃣ Testing read permissions...');
+    log.info('4️⃣ Testing read permissions...');
     const [content] = await file.download();
-    logger.info({ content: content.toString() }, '✅ Read permission OK');
+    log.info({ content: content.toString() }, '✅ Read permission OK');
 
     // Test 5: Test list permissions
-    logger.info('5️⃣ Testing list permissions...');
+    log.info('5️⃣ Testing list permissions...');
     const [files] = await storageService['bucket'].getFiles({ prefix: testPrefix });
-    logger.info({ fileCount: files.length }, '✅ List permission OK');
+    log.info({ fileCount: files.length }, '✅ List permission OK');
 
     // Test 6: Test public access configuration
-    logger.info('6️⃣ Testing public access configuration...');
+    log.info('6️⃣ Testing public access configuration...');
     const publicAccessMode = process.env.PUBLIC_ACCESS_MODE || 'object';
-    logger.info({ publicAccessMode }, 'Public access mode');
+    log.info({ publicAccessMode }, 'Public access mode');
 
     if (publicAccessMode === 'object') {
-      logger.info('Testing per-object public access...');
+      log.info('Testing per-object public access...');
       try {
         await file.makePublic();
-        logger.info('✅ Per-object makePublic() works');
+        log.info('✅ Per-object makePublic() works');
 
         // Verify public access
-        const publicUrl = storageService.getPublicUrl(testFileName);
-        logger.info({ publicUrl }, '🔗 Public URL generated');
+        const publicUrl = storageService.publicUrl(testFileName);
+        log.info({ publicUrl }, '🔗 Public URL generated');
 
         // Try to fetch the public URL
         const response = await fetch(publicUrl);
         if (response.ok) {
-          logger.info('✅ Public URL is accessible');
+          log.info('✅ Public URL is accessible');
         } else {
-          logger.warn({ status: response.status }, '⚠️ Public URL returned non-200 status');
+          log.warn({ status: response.status }, '⚠️ Public URL returned non-200 status');
         }
       } catch (error) {
-        logger.error({ error }, '❌ Failed to make object public. Ensure Fine-grained ACL is enabled on bucket.');
+        log.error({ error }, '❌ Failed to make object public. Ensure Fine-grained ACL is enabled on bucket.');
       }
     } else {
-      logger.info('Bucket-wide public access mode - skipping makePublic() test');
-      const publicUrl = storageService.getPublicUrl(testFileName);
-      logger.info({ publicUrl }, '🔗 Public URL generated');
+      log.info('Bucket-wide public access mode - skipping makePublic() test');
+      const publicUrl = storageService.publicUrl(testFileName);
+      log.info({ publicUrl }, '🔗 Public URL generated');
 
       const response = await fetch(publicUrl);
       if (response.ok) {
-        logger.info('✅ Public URL is accessible (bucket-wide access)');
+        log.info('✅ Public URL is accessible (bucket-wide access)');
       } else {
-        logger.error({ status: response.status }, '❌ Public URL not accessible. Check bucket IAM policy for allUsers:objectViewer');
+        log.error({ status: response.status }, '❌ Public URL not accessible. Check bucket IAM policy for allUsers:objectViewer');
       }
     }
 
     // Test 7: Test delete permissions
-    logger.info('7️⃣ Testing delete permissions...');
+    log.info('7️⃣ Testing delete permissions...');
     await file.delete();
-    logger.info('✅ Delete permission OK');
+    log.info('✅ Delete permission OK');
 
     // Clean up test prefix
     const [testFiles] = await storageService['bucket'].getFiles({ prefix: testPrefix });
     if (testFiles.length > 0) {
-      logger.info({ fileCount: testFiles.length }, 'Cleaning up test files...');
+      log.info({ fileCount: testFiles.length }, 'Cleaning up test files...');
       await Promise.all(testFiles.map(f => f.delete()));
     }
 
-    logger.info('');
-    logger.info('🎉 All GCS access checks passed!');
-    logger.info('');
-    logger.info('Summary:');
-    logger.info(`  ✅ Bucket: ${bucketName}`);
-    logger.info(`  ✅ Location: ${metadata.location}`);
-    logger.info(`  ✅ Storage Class: ${metadata.storageClass}`);
-    logger.info(`  ✅ Uniform Bucket-Level Access: ${metadata.iamConfiguration?.uniformBucketLevelAccess?.enabled ? 'Enabled' : 'Disabled'}`);
-    logger.info(`  ✅ Public Access Mode: ${publicAccessMode}`);
-    logger.info(`  ✅ Read/Write/List/Delete: OK`);
+    log.info('');
+    log.info('🎉 All GCS access checks passed!');
+    log.info('');
+    log.info('Summary:');
+    log.info(`  ✅ Bucket: ${bucketName}`);
+    log.info(`  ✅ Location: ${metadata.location}`);
+    log.info(`  ✅ Storage Class: ${metadata.storageClass}`);
+    log.info(`  ✅ Uniform Bucket-Level Access: ${metadata.iamConfiguration?.uniformBucketLevelAccess?.enabled ? 'Enabled' : 'Disabled'}`);
+    log.info(`  ✅ Public Access Mode: ${publicAccessMode}`);
+    log.info(`  ✅ Read/Write/List/Delete: OK`);
 
   } catch (error) {
-    logger.error({ error }, '❌ GCS access verification failed');
-    logger.error('');
-    logger.error('Common issues:');
-    logger.error('  1. SERVICE_ACCOUNT_JSON not set or invalid (for local dev)');
-    logger.error('  2. Service account lacks storage.objectAdmin role');
-    logger.error('  3. Bucket does not exist or wrong OUTPUT_BUCKET value');
-    logger.error('  4. Fine-grained ACL not enabled (for PUBLIC_ACCESS_MODE=object)');
-    logger.error('  5. allUsers:objectViewer policy missing (for PUBLIC_ACCESS_MODE=bucket)');
+    log.error({ error }, '❌ GCS access verification failed');
+    log.error('');
+    log.error('Common issues:');
+    log.error('  1. SERVICE_ACCOUNT_JSON not set or invalid (for local dev)');
+    log.error('  2. Service account lacks storage.objectAdmin role');
+    log.error('  3. Bucket does not exist or wrong OUTPUT_BUCKET value');
+    log.error('  4. Fine-grained ACL not enabled (for PUBLIC_ACCESS_MODE=object)');
+    log.error('  5. allUsers:objectViewer policy missing (for PUBLIC_ACCESS_MODE=bucket)');
     process.exit(1);
   } finally {
     await app.close();
