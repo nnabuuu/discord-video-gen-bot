@@ -216,7 +216,19 @@ export class VeoCommand {
         'Video generation completed',
       );
     } catch (error) {
-      logger.error({ error, userId, guildId, channelId }, 'Error executing /veo command');
+      logger.error(
+        {
+          error: error instanceof Error ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+          } : error,
+          userId,
+          guildId,
+          channelId,
+        },
+        'Error executing /veo command',
+      );
 
       const errorMessage =
         error instanceof Error ? error.message : 'An unexpected error occurred';

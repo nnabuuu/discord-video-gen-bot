@@ -15,8 +15,8 @@ export interface VeoRequest {
     resolution: string;
     generateAudio: boolean;
     sampleCount: number;
+    outputGcsUri: string;
   };
-  outputStorageUri: string;
 }
 
 export interface VeoOperation {

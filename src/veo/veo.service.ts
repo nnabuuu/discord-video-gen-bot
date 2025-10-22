@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { fetch } from 'undici';
 import { AuthService } from '../auth/auth.service';
 import { logger } from '../common/logger';
 import { VeoGenerationParams, VeoOperation, VeoRequest } from '../common/types';
@@ -31,8 +30,8 @@ export class VeoService {
         resolution: params.resolution,
         generateAudio: params.generateAudio,
         sampleCount: params.sampleCount,
+        outputGcsUri: outputStorageUri,
       },
-      outputStorageUri,
     };
 
     logger.info(
@@ -47,29 +46,67 @@ export class VeoService {
     try {
       const token = await this.authService.getAccessToken();
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
+      logger.debug({ endpoint, token: token.substring(0, 20) + '...' }, 'Making API request');
+
+      let response;
+      try {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+      } catch (fetchError: any) {
+        logger.error(
+          {
+            error: {
+              message: fetchError.message,
+              code: fetchError.code,
+              cause: fetchError.cause,
+              stack: fetchError.stack,
+            },
+            endpoint,
+          },
+          'Network error during fetch',
+        );
+        throw new Error(
+          `Network error calling Vertex AI: ${fetchError.message}${
+            fetchError.cause ? ` (${fetchError.cause})` : ''
+          }`,
+        );
+      }
 
       if (!response.ok) {
         const errorText = await response.text();
+        let errorJson;
+        try {
+          errorJson = JSON.parse(errorText);
+        } catch {
+          errorJson = errorText;
+        }
+
         logger.error(
           {
             status: response.status,
             statusText: response.statusText,
-            error: errorText,
+            error: errorJson,
+            requestBody,
           },
           'Veo generation request failed',
         );
-        throw new Error(`Veo API error (${response.status}): ${errorText}`);
+
+        const errorMessage = typeof errorJson === 'object' && errorJson.error?.message
+          ? errorJson.error.message
+          : errorText;
+
+        throw new Error(`Veo API error (${response.status}): ${errorMessage}`);
       }
 
-      const result = (await response.json()) as VeoOperation;
+      const result = (await response.json()) as any;
+
+      logger.info({ fullResponse: result }, 'Veo API response received');
 
       if (!result.name) {
         logger.error({ result }, 'No operation name in response');
@@ -79,7 +116,18 @@ export class VeoService {
       logger.info({ operationName: result.name }, 'Veo generation started');
       return result.name;
     } catch (error) {
-      logger.error({ error, params }, 'Failed to start Veo generation');
+      logger.error(
+        {
+          error: error instanceof Error ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name,
+          } : error,
+          params,
+          endpoint,
+        },
+        'Failed to start Veo generation',
+      );
       throw error;
     }
   }
@@ -89,9 +137,11 @@ export class VeoService {
     let pollInterval = INITIAL_POLL_INTERVAL_MS;
     const location = process.env.GCP_LOCATION || 'us-central1';
 
+    // Use the exact operation name returned by the API for polling
+    // The operation name already contains the full path
     const endpoint = `https://${location}-aiplatform.googleapis.com/v1/${operationName}`;
 
-    logger.info({ operationName }, 'Starting to poll operation');
+    logger.info({ operationName, endpoint }, 'Starting to poll operation');
 
     while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
       try {
