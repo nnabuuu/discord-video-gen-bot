@@ -40,9 +40,8 @@ export class VeoService {
 
     logger.info(
       {
-        endpoint,
-        params,
-        outputStorageUri,
+        prompt: params.prompt.substring(0, 50) + (params.prompt.length > 50 ? '...' : ''),
+        duration: params.durationSeconds,
       },
       'Starting Veo generation',
     );
@@ -110,8 +109,6 @@ export class VeoService {
 
       const result = (await response.json()) as any;
 
-      logger.info({ fullResponse: result }, 'Veo API response received');
-
       // Veo predictLongRunning returns an operation name, but polling doesn't work
       // The operation completes asynchronously and writes to GCS
       // We'll return a synthetic operation that just waits and checks GCS
@@ -120,7 +117,7 @@ export class VeoService {
         throw new Error('Invalid response: missing operation name');
       }
 
-      logger.info({ operationName: result.name }, 'Veo generation request accepted');
+      logger.info('Veo generation request accepted');
 
       // Return the operation name for tracking, but we'll poll GCS instead
       return result.name;
@@ -146,8 +143,6 @@ export class VeoService {
       const token = await this.authService.getAccessToken();
       const operationUrl = `https://us-central1-aiplatform.googleapis.com/v1/${operationName}`;
 
-      logger.debug({ operationUrl }, 'Checking operation status');
-
       const response = await fetch(operationUrl, {
         method: 'GET',
         headers: {
@@ -156,27 +151,14 @@ export class VeoService {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        logger.warn({
-          status: response.status,
-          statusText: response.statusText,
-          errorText: errorText.substring(0, 200),
-        }, 'Operation status check failed');
-
         // If operation endpoint doesn't exist (404), return not done
         if (response.status === 404) {
-          logger.info('Operation endpoint returned 404 - using GCS polling only');
           return { done: false };
         }
         return { done: false };
       }
 
       const result = await response.json();
-      logger.info({
-        done: result.done,
-        hasResponse: !!result.response,
-        hasError: !!result.error,
-      }, 'Operation status checked');
 
       return {
         done: result.done || false,
@@ -184,9 +166,6 @@ export class VeoService {
         error: result.error,
       };
     } catch (error) {
-      logger.warn({
-        error: error instanceof Error ? error.message : String(error),
-      }, 'Failed to check operation status - using GCS polling');
       return { done: false };
     }
   }
@@ -200,7 +179,7 @@ export class VeoService {
     const startTime = Date.now();
     let pollInterval = INITIAL_POLL_INTERVAL_MS;
 
-    logger.info({ operationName, gcsPrefix }, 'Polling operation for Veo generation results');
+    logger.info('Polling for generation results');
 
     while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
       try {
@@ -223,14 +202,12 @@ export class VeoService {
         // Try standard operation polling first
         const operationStatus = await this.checkOperationStatus(operationName);
         if (operationStatus.done) {
-          logger.info({ operationName, operationStatus }, 'Operation completed via polling');
-
           // Call final progress update (100%)
           if (onProgress) {
             try {
               await onProgress(1.0);
             } catch (error) {
-              logger.warn({ error }, 'Final progress callback failed');
+              // Ignore progress callback errors
             }
           }
 
@@ -251,35 +228,17 @@ export class VeoService {
             try {
               await onProgress(1.0);
             } catch (error) {
-              logger.warn({ error }, 'Final progress callback failed');
+              // Ignore progress callback errors
             }
           }
 
-          logger.info(
-            {
-              operationName,
-              fileCount: files.length,
-              elapsedMs,
-            },
-            'Veo generation completed - files found in GCS',
-          );
+          logger.info({ elapsedMs, fileCount: files.length }, 'Generation completed');
 
           return {
             name: operationName,
             done: true,
           };
         }
-
-        logger.debug(
-          {
-            operationName,
-            gcsPrefix,
-            pollInterval,
-            elapsedMs,
-            progress: Math.round(progress * 100),
-          },
-          'No files yet, continuing to poll',
-        );
 
         // Wait before next poll
         await this.sleep(pollInterval);
@@ -292,10 +251,7 @@ export class VeoService {
       }
     }
 
-    logger.error(
-      { operationName, gcsPrefix, duration: Date.now() - startTime },
-      'Generation timed out - no files found after 5 minutes',
-    );
+    logger.error({ duration: Date.now() - startTime }, 'Generation timed out after 5 minutes');
     throw new Error('Generation timed out after 5 minutes');
   }
 

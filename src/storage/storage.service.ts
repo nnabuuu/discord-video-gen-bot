@@ -36,7 +36,6 @@ export class StorageService implements OnModuleInit {
       const [files] = await this.bucket.getFiles({ prefix });
       const fileNames = files.map((file) => file.name).filter((name) => name.endsWith('.mp4'));
 
-      logger.info({ prefix, count: fileNames.length }, 'Listed files from GCS');
       return fileNames;
     } catch (error) {
       logger.error({ error, prefix }, 'Failed to list files');
@@ -46,14 +45,12 @@ export class StorageService implements OnModuleInit {
 
   async makePublic(objectName: string): Promise<void> {
     if (this.publicAccessMode === 'bucket') {
-      logger.debug({ objectName }, 'Skipping makePublic (bucket-wide access mode)');
       return;
     }
 
     try {
       const file = this.bucket.file(objectName);
       await file.makePublic();
-      logger.info({ objectName }, 'Made object public');
     } catch (error) {
       logger.error({ error, objectName }, 'Failed to make object public');
       throw error;
