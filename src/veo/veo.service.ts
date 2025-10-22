@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AuthService } from '../auth/auth.service';
+import { StorageService } from '../storage/storage.service';
 import { logger } from '../common/logger';
 import { VeoGenerationParams, VeoOperation, VeoRequest } from '../common/types';
 
@@ -10,7 +11,10 @@ const BACKOFF_MULTIPLIER = 1.5;
 
 @Injectable()
 export class VeoService {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly storageService: StorageService,
+  ) {}
 
   async startGeneration(
     params: VeoGenerationParams,
@@ -137,30 +141,103 @@ export class VeoService {
     }
   }
 
-  async pollOperation(operationName: string): Promise<VeoOperation> {
+  async pollOperation(
+    operationName: string,
+    gcsPrefix: string,
+    onProgress?: (progress: number) => Promise<void>,
+  ): Promise<VeoOperation> {
     // Veo predictLongRunning doesn't support standard operation polling
     // Instead, it writes results directly to GCS asynchronously
-    // We wait a fixed time and then check GCS for output files
+    // We poll GCS to check when files appear
 
     const startTime = Date.now();
-    logger.info({ operationName }, 'Waiting for Veo generation to complete (GCS-based)');
+    let pollInterval = INITIAL_POLL_INTERVAL_MS;
 
-    // Veo typically takes 2-4 minutes for generation
-    // Wait 2 minutes before checking
-    const waitTime = 120000; // 2 minutes
-    await this.sleep(waitTime);
+    logger.info({ operationName, gcsPrefix }, 'Polling GCS for Veo generation results');
 
-    logger.info(
-      { operationName, waitedMs: Date.now() - startTime },
-      'Generation wait period completed',
+    while (Date.now() - startTime < MAX_POLL_DURATION_MS) {
+      try {
+        const elapsedMs = Date.now() - startTime;
+
+        // Calculate estimated progress (Veo typically takes 2-4 minutes)
+        // Progress is estimated, not real progress from API
+        const estimatedDuration = 180000; // 3 minutes average
+        const progress = Math.min(elapsedMs / estimatedDuration, 0.95); // Cap at 95% until done
+
+        // Call progress callback if provided
+        if (onProgress) {
+          try {
+            await onProgress(progress);
+          } catch (error) {
+            logger.warn({ error }, 'Progress callback failed');
+          }
+        }
+
+        // Check if any .mp4 files exist in the GCS prefix
+        const files = await this.checkGcsFiles(gcsPrefix);
+
+        if (files.length > 0) {
+          // Call final progress update (100%)
+          if (onProgress) {
+            try {
+              await onProgress(1.0);
+            } catch (error) {
+              logger.warn({ error }, 'Final progress callback failed');
+            }
+          }
+
+          logger.info(
+            {
+              operationName,
+              fileCount: files.length,
+              elapsedMs,
+            },
+            'Veo generation completed - files found in GCS',
+          );
+
+          return {
+            name: operationName,
+            done: true,
+          };
+        }
+
+        logger.debug(
+          {
+            operationName,
+            gcsPrefix,
+            pollInterval,
+            elapsedMs,
+            progress: Math.round(progress * 100),
+          },
+          'No files yet, continuing to poll',
+        );
+
+        // Wait before next poll
+        await this.sleep(pollInterval);
+
+        // Exponential backoff
+        pollInterval = Math.min(pollInterval * BACKOFF_MULTIPLIER, MAX_POLL_INTERVAL_MS);
+      } catch (error) {
+        logger.error({ error, operationName, gcsPrefix }, 'Error polling GCS');
+        throw error;
+      }
+    }
+
+    logger.error(
+      { operationName, gcsPrefix, duration: Date.now() - startTime },
+      'Generation timed out - no files found after 5 minutes',
     );
+    throw new Error('Generation timed out after 5 minutes');
+  }
 
-    // Return a synthetic "done" operation
-    // The actual result checking happens by listing GCS files
-    return {
-      name: operationName,
-      done: true,
-    };
+  private async checkGcsFiles(prefix: string): Promise<string[]> {
+    try {
+      const files = await this.storageService.listFiles(prefix);
+      return files;
+    } catch (error) {
+      logger.error({ error, prefix }, 'Failed to check GCS files');
+      return [];
+    }
   }
 
   private sleep(ms: number): Promise<void> {

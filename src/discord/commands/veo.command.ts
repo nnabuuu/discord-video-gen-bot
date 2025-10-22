@@ -157,12 +157,31 @@ export class VeoCommand {
         outputUri,
       );
 
-      await interaction.editReply(
-        `🎬 Generating your video...\n\`\`\`\n${options.prompt}\n\`\`\`\n_This may take up to 5 minutes._`,
-      );
+      // Midjourney-style progress updates
+      const progressEmbed = new EmbedBuilder()
+        .setColor(Colors.Yellow)
+        .setDescription(`**${options.prompt}**`)
+        .setFooter({ text: 'Waiting to start...' })
+        .setTimestamp();
 
-      // Poll for completion
-      await this.veoService.pollOperation(operationName);
+      await interaction.editReply({ embeds: [progressEmbed] });
+
+      // Poll for completion with progress updates
+      await this.veoService.pollOperation(operationName, prefix, async (progress) => {
+        // Update progress in Discord (Midjourney style)
+        const percentage = Math.round(progress * 100);
+        const progressBar = this.createProgressBar(progress);
+
+        progressEmbed
+          .setFooter({ text: `${progressBar} ${percentage}% complete` })
+          .setTimestamp();
+
+        try {
+          await interaction.editReply({ embeds: [progressEmbed] });
+        } catch (error) {
+          logger.warn({ error }, 'Failed to update progress message');
+        }
+      });
 
       // List generated files
       const files = await this.storageService.listFiles(prefix);
@@ -181,29 +200,31 @@ export class VeoCommand {
         publicUrls.push(this.storageService.publicUrl(fileName));
       }
 
-      // Build response embed
-      const embed = new EmbedBuilder()
+      // Midjourney-style completion message
+      const completionEmbed = new EmbedBuilder()
         .setColor(Colors.Green)
-        .setTitle('✅ Video Generated Successfully')
-        .setDescription(`**Prompt:** ${options.prompt}`)
+        .setDescription(`**${options.prompt}**`)
         .addFields(
           { name: 'Duration', value: `${options.length}s`, inline: true },
           { name: 'Aspect Ratio', value: options.ratio, inline: true },
           { name: 'Resolution', value: resolution, inline: true },
-          { name: 'Audio', value: options.audio ? 'Yes' : 'No', inline: true },
-          {
-            name: 'Remaining Quota',
-            value: `${rateLimitResult.remaining}/5 videos`,
-            inline: true,
-          },
         )
+        .setFooter({
+          text: `Fast mode • ${rateLimitResult.remaining}/5 remaining today`,
+        })
         .setTimestamp();
+
+      // Set thumbnail if available (first video)
+      if (publicUrls.length > 0) {
+        // Discord can't thumbnail videos, but we can link them
+        completionEmbed.setURL(publicUrls[0]);
+      }
 
       const videoLinks = publicUrls.map((url, idx) => `[Video ${idx + 1}](${url})`).join(' • ');
 
       await interaction.editReply({
-        content: `${videoLinks}`,
-        embeds: [embed],
+        content: videoLinks,
+        embeds: [completionEmbed],
       });
 
       logger.info(
@@ -244,5 +265,17 @@ export class VeoCommand {
         });
       }
     }
+  }
+
+  private createProgressBar(progress: number): string {
+    // Midjourney-style progress bar with blocks
+    const blocks = 10;
+    const filled = Math.round(progress * blocks);
+    const empty = blocks - filled;
+
+    const filledBar = '█'.repeat(filled);
+    const emptyBar = '░'.repeat(empty);
+
+    return `${filledBar}${emptyBar}`;
   }
 }

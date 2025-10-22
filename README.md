@@ -98,7 +98,17 @@ gcloud storage buckets add-iam-policy-binding gs://discord-video-gen-bot-test \
 
 **Note:** This makes ALL objects in the bucket publicly readable. Only use this if you understand the security implications.
 
-### 5. Authentication
+### 5. Auto-Delete Old Videos (Recommended)
+
+To save storage costs, configure GCS to automatically delete videos after 1 day:
+
+```bash
+bash scripts/setup-lifecycle.sh
+```
+
+This sets up a GCS lifecycle policy that automatically deletes videos older than 1 day. Works even when the bot is offline!
+
+### 6. Authentication
 
 #### For Local Development
 
