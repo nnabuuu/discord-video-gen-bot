@@ -6,14 +6,16 @@ A production-ready NestJS Discord bot that generates short videos using **Google
 
 - 🎬 Generate 4-8 second videos using Vertex AI Veo 3.1
 - 🎨 Customizable aspect ratio (16:9 or 9:16), resolution (720p/1080p), and audio
-- 🔒 Per-user rate limiting (5 videos per 24 hours)
+- 🔒 Database-backed rate limiting (5 videos per 24 hours)
 - ☁️ Automatic GCS upload and public URL generation
 - 📊 Comprehensive logging with Pino
+- 💾 Full request tracking with PostgreSQL persistence
 - 🚀 Built with NestJS and TypeScript
 
 ## Prerequisites
 
 - Node.js 20+
+- **PostgreSQL 14+** database
 - Discord Bot Application
 - Google Cloud Project with:
   - Vertex AI API enabled
@@ -31,6 +33,117 @@ A production-ready NestJS Discord bot that generates short videos using **Google
    - Scopes: `bot`, `applications.commands`
    - Bot Permissions: `Send Messages`, `Use Slash Commands`
 7. Use the generated URL to invite the bot to your server
+
+## Database Setup
+
+The bot requires PostgreSQL 14+ for request tracking and rate limiting.
+
+### Option A: Local Development with Docker (Recommended)
+
+Start PostgreSQL using Docker Compose:
+
+```bash
+docker-compose up -d
+```
+
+This starts PostgreSQL on `localhost:5432` and automatically runs migrations on first startup.
+
+Your database is now ready! Set `DATABASE_URL` in `.env`:
+
+```env
+DATABASE_URL=postgresql://discord_video:dev_password@localhost:5432/discord_video_dev
+```
+
+To manually run migrations:
+
+```bash
+npm run db:migrate
+```
+
+### Option B: Cloud SQL (Production)
+
+1. Create a Cloud SQL PostgreSQL instance:
+
+```bash
+gcloud sql instances create discord-video-db \
+  --database-version=POSTGRES_14 \
+  --tier=db-f1-micro \
+  --region=us-central1
+```
+
+2. Create the database:
+
+```bash
+gcloud sql databases create discord_video_prod \
+  --instance=discord-video-db
+```
+
+3. Set the root password:
+
+```bash
+gcloud sql users set-password postgres \
+  --instance=discord-video-db \
+  --password=YOUR_SECURE_PASSWORD
+```
+
+4. Get the connection string and set `DATABASE_URL` in your environment.
+
+5. Apply migrations:
+
+```bash
+export DATABASE_URL="postgresql://postgres:PASSWORD@/discord_video_prod?host=/cloudsql/PROJECT:REGION:discord-video-db"
+npm run db:migrate
+```
+
+### Manual Migrations
+
+All migrations are stored in the `migrations/` directory as plain SQL files:
+
+- `001_create_video_requests.sql` - Create main table
+- `002_add_indexes.sql` - Add performance indexes
+
+#### Running Migrations
+
+```bash
+# Apply all migrations
+npm run db:migrate
+
+# Rollback all migrations
+npm run db:migrate:down
+```
+
+#### Production Migrations
+
+For production, set your `DATABASE_URL` and run migrations:
+
+```bash
+# Set production database URL
+export DATABASE_URL="postgresql://user:password@prod-host:5432/database"
+
+# Apply migrations
+npm run db:migrate
+```
+
+Or run SQL files directly:
+
+```bash
+psql $DATABASE_URL -f migrations/001_create_video_requests.sql
+psql $DATABASE_URL -f migrations/002_add_indexes.sql
+```
+
+📋 **Migration Best Practices:**
+- Always backup before running migrations in production
+- Test migrations on staging first
+- Migrations are idempotent (safe to run multiple times)
+- See `migrations/README.md` for detailed migration guide
+
+### Database Schema
+
+The bot creates a `video_requests` table that tracks:
+- Request parameters (prompt, duration, resolution, etc.)
+- Lifecycle status (pending → generating → completed/failed/timeout)
+- Timing metrics (created_at, started_at, completed_at, duration_ms)
+- Results (GCS URLs, error messages)
 
 ## Google Cloud Setup
 
@@ -161,6 +274,9 @@ Required environment variables:
 DISCORD_BOT_TOKEN=your_bot_token_here
 DISCORD_APP_ID=your_application_id_here
 
+# Database (REQUIRED)
+DATABASE_URL=postgresql://user:password@localhost:5432/discord_video_dev
+
 # Google Cloud
 GCP_PROJECT_ID=your-project-id
 GCP_LOCATION=us-central1
@@ -173,13 +289,17 @@ PUBLIC_ACCESS_MODE=object
 # Optional: Service Account (local dev only)
 # SERVICE_ACCOUNT_JSON=./service-account-key.json
 
-# Optional: Redis for distributed rate limiting
-# REDIS_URL=redis://localhost:6379
+# Optional: Database connection pool size
+# DATABASE_MAX_CONNECTIONS=10
 
 # Optional: Channel Whitelist (comma-separated channel IDs)
 # Leave empty to allow all channels
 # ALLOWED_CHANNEL_IDS=1234567890123456789,9876543210987654321
 ```
+
+**Important Notes:**
+- ✅ `DATABASE_URL` is **required** for the bot to run
+- The Discord bot connects directly to PostgreSQL using Slonik
 
 ## Usage
 
@@ -227,6 +347,7 @@ In Discord, use the `/veo` command with the following options:
 
 **Rate Limits:**
 - 5 videos per user per 24-hour rolling window
+- Database-backed (persistent across restarts)
 - Limit resets as old requests fall outside the 24-hour window
 
 **Channel Restrictions:**
@@ -243,6 +364,11 @@ src/
 │   ├── dto.ts             # Zod validation schemas
 │   ├── types.ts           # TypeScript interfaces
 │   └── logger.ts          # Pino logger configuration
+├── database/
+│   ├── database.module.ts
+│   ├── database.service.ts           # Slonik connection pool
+│   ├── database.types.ts             # Database type definitions
+│   └── request-tracking.service.ts   # Request CRUD operations
 ├── auth/
 │   ├── auth.module.ts
 │   └── auth.service.ts    # Google Cloud authentication
@@ -266,30 +392,35 @@ src/
 
 ## Rate Limiting
 
-The bot enforces a quota of **5 videos per user per 24 hours** using a rolling window.
+The bot enforces a quota of **5 videos per user per 24 hours** using database-backed rate limiting with PostgreSQL.
 
-### Redis (Recommended for Production)
+### How It Works
 
-Set `REDIS_URL` to use Redis for distributed rate limiting:
+- Rate limits are stored in the `video_requests` table
+- Uses a rolling 24-hour window (not fixed daily reset)
+- Persistent across bot restarts
+- Graceful degradation: If database is unavailable, requests are allowed (with warnings logged)
 
-```env
-REDIS_URL=redis://localhost:6379
-```
+### Benefits Over Redis/In-Memory
 
-### In-Memory Fallback
-
-If `REDIS_URL` is not set, the bot uses an in-memory store. **Note:** This only works for single-instance deployments and resets on restart.
+- **Persistent**: Rate limit state survives restarts
+- **Auditable**: See exactly which requests counted toward quota
+- **Simpler**: No separate Redis dependency to manage
+- **Analytics-ready**: Request history available for analysis
 
 ## Video Generation Flow
 
 1. User invokes `/veo` command
-2. Bot validates input and checks rate limit
-3. Sends "generating..." message to Discord
-4. Calls Vertex AI Veo 3.1 `predictLongRunning` endpoint
-5. Polls the operation until completion (max 5 minutes)
-6. Lists generated .mp4 files from GCS prefix
-7. Makes each file publicly accessible (if `PUBLIC_ACCESS_MODE=object`)
-8. Returns public HTTPS URLs to user
+2. Bot validates input and checks rate limit against database
+3. **Creates request record in database** (status: `pending`)
+4. Sends "generating..." message to Discord
+5. Calls Vertex AI Veo 3.1 `predictLongRunning` endpoint
+6. **Updates status to `generating`** with operation details
+7. Polls the operation until completion (max 5 minutes)
+8. Lists generated .mp4 files from GCS prefix
+9. Makes each file publicly accessible (if `PUBLIC_ACCESS_MODE=object`)
+10. **Updates status to `completed`** with video URLs and timing metrics
+11. Returns public HTTPS URLs to user
 
 ## Troubleshooting
 
@@ -314,10 +445,26 @@ If `REDIS_URL` is not set, the bot uses an in-memory store. **Note:** This only 
 - Verify the Vertex AI service account has `roles/storage.objectAdmin` on the bucket
 - Check Vertex AI operation logs for errors
 
-### Rate limit not working correctly
+### "DATABASE_URL environment variable is required"
 
-- If using Redis, ensure `REDIS_URL` is set correctly and Redis is running
-- For in-memory mode, limits reset on bot restart
+- Ensure `DATABASE_URL` is set in your `.env` file
+- For local development, start PostgreSQL: `docker-compose up -d`
+- Verify database is accessible: `psql $DATABASE_URL -c "SELECT 1"`
+
+### "Rate limiting degraded - database unavailable"
+
+- Check database connection: `docker-compose ps` (local) or check Cloud SQL status (production)
+- Verify `DATABASE_URL` is correct
+- Check database logs for connection errors
+- **Note**: Bot continues to work with degraded rate limiting if database is down
+
+### Database migration errors
+
+- Check PostgreSQL is running: `docker-compose ps` (local)
+- Test database connection: `psql $DATABASE_URL -c "SELECT 1"`
+- Rollback if needed: `npm run db:migrate:down`
+- Re-apply: `npm run db:migrate`
+- See `migrations/README.md` for detailed migration guide
 
 ## Development
 
@@ -345,7 +492,15 @@ npm run test:cov
 gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/discord-video-bot
 ```
 
-2. Deploy to Cloud Run:
+2. Apply database migrations to Cloud SQL:
+
+```bash
+# Connect to Cloud SQL and run migrations
+export DATABASE_URL="postgresql://postgres:PASSWORD@/discord_video_prod?host=/cloudsql/PROJECT:REGION:discord-video-db"
+npm run db:migrate
+```
+
+3. Deploy to Cloud Run:
 
 ```bash
 gcloud run deploy discord-video-bot \
@@ -353,13 +508,14 @@ gcloud run deploy discord-video-bot \
   --platform managed \
   --region us-central1 \
   --service-account discord-video-bot@YOUR_PROJECT_ID.iam.gserviceaccount.com \
-  --set-env-vars="DISCORD_BOT_TOKEN=...,DISCORD_APP_ID=...,GCP_PROJECT_ID=...,OUTPUT_BUCKET=...,PUBLIC_ACCESS_MODE=object" \
+  --set-env-vars="DISCORD_BOT_TOKEN=...,DISCORD_APP_ID=...,DATABASE_URL=postgresql://...,GCP_PROJECT_ID=...,OUTPUT_BUCKET=...,PUBLIC_ACCESS_MODE=object" \
+  --add-cloudsql-instances PROJECT:REGION:discord-video-db \
   --no-allow-unauthenticated \
   --memory 512Mi \
   --cpu 1
 ```
 
-3. The service will start the Discord bot and keep it running
+4. The service will start the Discord bot and keep it running
 
 ## Security Considerations
 

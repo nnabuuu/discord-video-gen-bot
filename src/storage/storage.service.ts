@@ -73,4 +73,26 @@ export class StorageService implements OnModuleInit {
   buildOutputUri(prefix: string): string {
     return `gs://${this.bucketName}/${prefix}`;
   }
+
+  async getFileMetadata(objectName: string): Promise<{ size: number }> {
+    try {
+      const file = this.bucket.file(objectName);
+      const [metadata] = await file.getMetadata();
+      return { size: Number(metadata.size) };
+    } catch (error) {
+      logger.error({ error, objectName }, 'Failed to get file metadata');
+      throw error;
+    }
+  }
+
+  async downloadToBuffer(objectName: string): Promise<Buffer> {
+    try {
+      const file = this.bucket.file(objectName);
+      const [buffer] = await file.download();
+      return buffer;
+    } catch (error) {
+      logger.error({ error, objectName }, 'Failed to download file');
+      throw error;
+    }
+  }
 }

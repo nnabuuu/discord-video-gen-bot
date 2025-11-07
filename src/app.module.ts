@@ -5,6 +5,7 @@ import { VeoModule } from './veo/veo.module';
 import { StorageModule } from './storage/storage.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { AuthModule } from './auth/auth.module';
+import { DatabaseModule } from './database/database.module';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { AuthModule } from './auth/auth.module';
       isGlobal: true,
       envFilePath: '.env',
     }),
+    DatabaseModule,
     AuthModule,
     StorageModule,
     RateLimitModule,

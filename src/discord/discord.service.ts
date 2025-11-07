@@ -5,6 +5,9 @@ import { VeoCommand } from './commands/veo.command';
 import { VeoService } from '../veo/veo.service';
 import { StorageService } from '../storage/storage.service';
 import { RateLimitService } from '../rate-limit/rate-limit.service';
+import { VideoAttachmentService } from './video-attachment.service';
+import { RequestTrackingService } from '../database/request-tracking.service';
+import { TaskResumeService } from './task-resume.service';
 
 @Injectable()
 export class DiscordService implements OnModuleInit {
@@ -15,12 +18,21 @@ export class DiscordService implements OnModuleInit {
     private readonly veoService: VeoService,
     private readonly storageService: StorageService,
     private readonly rateLimitService: RateLimitService,
+    private readonly videoAttachmentService: VideoAttachmentService,
+    private readonly requestTrackingService: RequestTrackingService,
+    private readonly taskResumeService: TaskResumeService,
   ) {
     this.client = new Client({
       intents: [GatewayIntentBits.Guilds],
     });
 
-    this.veoCommand = new VeoCommand(veoService, storageService, rateLimitService);
+    this.veoCommand = new VeoCommand(
+      veoService,
+      storageService,
+      rateLimitService,
+      videoAttachmentService,
+      requestTrackingService,
+    );
   }
 
   async onModuleInit() {
@@ -30,8 +42,21 @@ export class DiscordService implements OnModuleInit {
       throw new Error('DISCORD_BOT_TOKEN is required');
     }
 
+    // Inject Discord client into TaskResumeService
+    this.taskResumeService.setDiscordClient(this.client);
+
     this.client.once(Events.ClientReady, (readyClient) => {
       logger.info({ user: readyClient.user.tag }, 'Discord bot is ready');
+
+      // Resume incomplete tasks in background (non-blocking)
+      this.taskResumeService
+        .resumeIncompleteTasks()
+        .then(() => {
+          logger.info('Task resume process finished');
+        })
+        .catch((error) => {
+          logger.error({ error }, 'Task resume process encountered error');
+        });
     });
 
     this.client.on(Events.InteractionCreate, async (interaction) => {
