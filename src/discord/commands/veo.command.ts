@@ -86,9 +86,9 @@ export class VeoCommand {
       // Parse and validate options
       const rawOptions = {
         prompt: interaction.options.getString('prompt', true),
-        length: interaction.options.getInteger('length') ?? 8,
+        length: interaction.options.getInteger('length') ?? 4,
         ratio: interaction.options.getString('ratio') ?? '16:9',
-        hd: interaction.options.getBoolean('hd') ?? true,
+        hd: interaction.options.getBoolean('hd') ?? false,
         audio: interaction.options.getBoolean('audio') ?? true,
       };
 
