@@ -4,6 +4,7 @@ import { DatabaseService } from './database.service';
 import {
   VideoRequestRow,
   VideoRequestStatus,
+  RequestType,
   CreateVideoRequestInput,
   UpdateVideoRequestInput,
 } from './database.types';
@@ -23,6 +24,7 @@ export class RequestTrackingService {
           guild_id,
           channel_id,
           prompt,
+          request_type,
           duration_seconds,
           aspect_ratio,
           resolution,
@@ -33,10 +35,11 @@ export class RequestTrackingService {
           ${input.guild_id},
           ${input.channel_id},
           ${input.prompt},
-          ${input.duration_seconds},
+          ${input.request_type},
+          ${input.duration_seconds ?? null},
           ${input.aspect_ratio},
-          ${input.resolution},
-          ${input.generate_audio},
+          ${input.resolution ?? null},
+          ${input.generate_audio ?? null},
           ${VideoRequestStatus.PENDING}
         )
         RETURNING id
@@ -242,15 +245,20 @@ export class RequestTrackingService {
     }
   }
 
-  async countRecentRequests(userId: string, hoursAgo: number = 24): Promise<number> {
+  async countRecentRequests(userId: string, hoursAgo: number = 24, requestType?: RequestType): Promise<number> {
     try {
       const pool = this.databaseService.getPool();
+
+      const typeFilter = requestType
+        ? sql.unsafe`AND request_type = ${requestType}`
+        : sql.unsafe``;
 
       const result = await pool.one(sql.unsafe`
         SELECT COUNT(*) as count
         FROM video_requests
         WHERE user_id = ${userId}
           AND created_at >= NOW() - INTERVAL '1 hour' * ${hoursAgo}
+          ${typeFilter}
       `) as { count: string };
 
       return parseInt(result.count, 10);
@@ -259,6 +267,7 @@ export class RequestTrackingService {
         {
           error: error instanceof Error ? error.message : error,
           userId,
+          requestType,
         },
         'Failed to count recent requests',
       );
@@ -266,15 +275,20 @@ export class RequestTrackingService {
     }
   }
 
-  async getOldestRequestTime(userId: string, hoursAgo: number = 24): Promise<Date | null> {
+  async getOldestRequestTime(userId: string, hoursAgo: number = 24, requestType?: RequestType): Promise<Date | null> {
     try {
       const pool = this.databaseService.getPool();
+
+      const typeFilter = requestType
+        ? sql.unsafe`AND request_type = ${requestType}`
+        : sql.unsafe``;
 
       const result = await pool.maybeOne(sql.unsafe`
         SELECT created_at
         FROM video_requests
         WHERE user_id = ${userId}
           AND created_at >= NOW() - INTERVAL '1 hour' * ${hoursAgo}
+          ${typeFilter}
         ORDER BY created_at ASC
         LIMIT 1
       `) as { created_at: Date } | null;
@@ -285,6 +299,7 @@ export class RequestTrackingService {
         {
           error: error instanceof Error ? error.message : error,
           userId,
+          requestType,
         },
         'Failed to get oldest request time',
       );

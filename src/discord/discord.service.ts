@@ -2,7 +2,9 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Client, GatewayIntentBits, Events, ChatInputCommandInteraction } from 'discord.js';
 import { logger } from '../common/logger';
 import { VeoCommand } from './commands/veo.command';
+import { BananaCommand } from './commands/banana.command';
 import { VeoService } from '../veo/veo.service';
+import { BananaService } from '../banana/banana.service';
 import { StorageService } from '../storage/storage.service';
 import { RateLimitService } from '../rate-limit/rate-limit.service';
 import { VideoAttachmentService } from './video-attachment.service';
@@ -13,9 +15,11 @@ import { TaskResumeService } from './task-resume.service';
 export class DiscordService implements OnModuleInit {
   private client: Client;
   private veoCommand: VeoCommand;
+  private bananaCommand: BananaCommand;
 
   constructor(
     private readonly veoService: VeoService,
+    private readonly bananaService: BananaService,
     private readonly storageService: StorageService,
     private readonly rateLimitService: RateLimitService,
     private readonly videoAttachmentService: VideoAttachmentService,
@@ -31,6 +35,13 @@ export class DiscordService implements OnModuleInit {
       storageService,
       rateLimitService,
       videoAttachmentService,
+      requestTrackingService,
+    );
+
+    this.bananaCommand = new BananaCommand(
+      bananaService,
+      storageService,
+      rateLimitService,
       requestTrackingService,
     );
   }
@@ -93,6 +104,8 @@ export class DiscordService implements OnModuleInit {
     try {
       if (commandName === 'veo') {
         await this.veoCommand.execute(interaction);
+      } else if (commandName === 'banana') {
+        await this.bananaCommand.execute(interaction);
       } else {
         await interaction.reply({
           content: 'Unknown command',

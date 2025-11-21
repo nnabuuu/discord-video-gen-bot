@@ -6,17 +6,23 @@ export enum VideoRequestStatus {
   TIMEOUT = 'timeout',
 }
 
+export enum RequestType {
+  VEO = 'veo',
+  BANANA = 'banana',
+}
+
 export interface VideoRequestRow {
   id: string;
   user_id: string;
   guild_id: string;
   channel_id: string;
   prompt: string;
-  duration_seconds: 4 | 6 | 8;
-  aspect_ratio: '16:9' | '9:16';
-  resolution: '720p' | '1080p';
-  generate_audio: boolean;
+  duration_seconds: 4 | 6 | 8 | null;
+  aspect_ratio: '16:9' | '9:16' | '1:1' | '4:3' | '3:4';
+  resolution: '720p' | '1080p' | null;
+  generate_audio: boolean | null;
   status: VideoRequestStatus;
+  request_type: RequestType;
   operation_name: string | null;
   created_at: Date;
   started_at: Date | null;
@@ -32,10 +38,11 @@ export interface CreateVideoRequestInput {
   guild_id: string;
   channel_id: string;
   prompt: string;
-  duration_seconds: 4 | 6 | 8;
-  aspect_ratio: '16:9' | '9:16';
-  resolution: '720p' | '1080p';
-  generate_audio: boolean;
+  request_type: RequestType;
+  duration_seconds?: 4 | 6 | 8;
+  aspect_ratio: '16:9' | '9:16' | '1:1' | '4:3' | '3:4';
+  resolution?: '720p' | '1080p';
+  generate_audio?: boolean;
 }
 
 export interface UpdateVideoRequestInput {

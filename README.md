@@ -1,12 +1,13 @@
 # Discord Video Generation Bot
 
-A production-ready NestJS Discord bot that generates short videos using **Google Cloud Vertex AI Veo 3.1**, stores them in Google Cloud Storage (GCS), and makes them publicly accessible.
+A production-ready NestJS Discord bot that generates short videos and images using **Google Cloud Vertex AI**, stores them in Google Cloud Storage (GCS), and makes them publicly accessible.
 
 ## Features
 
-- 🎬 Generate 4-8 second videos using Vertex AI Veo 3.1
-- 🎨 Customizable aspect ratio (16:9 or 9:16), resolution (720p/1080p), and audio
-- 🔒 Database-backed rate limiting (5 videos per 24 hours)
+- 🎬 Generate 4-8 second videos using Vertex AI Veo 3.1 (`/veo` command)
+- 🖼️ Generate images using Gemini 3 Pro Image Preview (`/banana` command)
+- 🎨 Customizable aspect ratio, resolution, and audio options
+- 🔒 Database-backed rate limiting (5 generations per 24 hours)
 - ☁️ Automatic GCS upload and public URL generation
 - 📊 Comprehensive logging with Pino
 - 💾 Full request tracking with PostgreSQL persistence
@@ -281,6 +282,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/discord_video_dev
 GCP_PROJECT_ID=your-project-id
 GCP_LOCATION=us-central1
 VEO_MODEL_ID=veo-3.1-generate-preview
+BANANA_MODEL_ID=gemini-3-pro-image-preview
 OUTPUT_BUCKET=discord-video-gen-bot-test
 
 # Public Access Mode (object or bucket)
@@ -305,7 +307,7 @@ PUBLIC_ACCESS_MODE=object
 
 ### Register Slash Commands
 
-Before running the bot, register the `/veo` command with Discord:
+Before running the bot, register the slash commands (`/veo` and `/banana`) with Discord:
 
 ```bash
 npm run register:commands
@@ -346,13 +348,28 @@ In Discord, use the `/veo` command with the following options:
 - `audio` (optional): Generate audio for the video (default: true)
 
 **Rate Limits:**
-- 5 videos per user per 24-hour rolling window
+- 5 generations per user per 24-hour rolling window
 - Database-backed (persistent across restarts)
 - Limit resets as old requests fall outside the 24-hour window
 
 **Channel Restrictions:**
 - Optionally restrict bot usage to specific channels via `ALLOWED_CHANNEL_IDS`
 - If not set, bot works in all channels where it has permissions
+
+### Using the /banana Command
+
+In Discord, use the `/banana` command with the following options:
+
+```
+/banana prompt:"A cute cat wearing a tiny hat"
+        ratio:1:1
+        count:2
+```
+
+**Parameters:**
+- `prompt` (required): Text description of the image (5-600 characters)
+- `ratio` (optional): Aspect ratio - "1:1", "16:9", "9:16", "4:3", or "3:4" (default: "1:1")
+- `count` (optional): Number of images to generate, 1-4 (default: 1)
 
 ## Project Structure
 
@@ -381,11 +398,15 @@ src/
 ├── veo/
 │   ├── veo.module.ts
 │   └── veo.service.ts     # Vertex AI Veo client
+├── banana/
+│   ├── banana.module.ts
+│   └── banana.service.ts  # Gemini 3 Pro Image client
 ├── discord/
 │   ├── discord.module.ts
 │   ├── discord.service.ts # Discord.js client
 │   └── commands/
-│       └── veo.command.ts # /veo command handler
+│       ├── veo.command.ts    # /veo command handler
+│       └── banana.command.ts # /banana command handler
 └── scripts/
     └── register-commands.ts # Slash command registration
 ```

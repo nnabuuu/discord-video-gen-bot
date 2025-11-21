@@ -22,6 +22,7 @@ async function runMigrations() {
     const migrations = [
       'migrations/001_create_video_requests.sql',
       'migrations/002_add_indexes.sql',
+      'migrations/003_add_request_type.sql',
     ];
 
     for (const migrationFile of migrations) {

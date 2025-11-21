@@ -1,6 +1,7 @@
 import { REST, Routes } from 'discord.js';
 import { config } from 'dotenv';
 import { VeoCommand } from '../discord/commands/veo.command';
+import { BananaCommand } from '../discord/commands/banana.command';
 import { logger } from '../common/logger';
 
 // Load environment variables
@@ -14,7 +15,7 @@ if (!token || !appId) {
   process.exit(1);
 }
 
-const commands = [VeoCommand.data.toJSON()];
+const commands = [VeoCommand.data.toJSON(), BananaCommand.data.toJSON()];
 
 const rest = new REST({ version: '10' }).setToken(token);
 

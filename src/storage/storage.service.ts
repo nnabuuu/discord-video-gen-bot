@@ -43,6 +43,21 @@ export class StorageService implements OnModuleInit {
     }
   }
 
+  async listImageFiles(prefix: string): Promise<string[]> {
+    try {
+      const [files] = await this.bucket.getFiles({ prefix });
+      const imageExtensions = ['.png', '.jpg', '.jpeg', '.webp'];
+      const fileNames = files
+        .map((file) => file.name)
+        .filter((name) => imageExtensions.some((ext) => name.toLowerCase().endsWith(ext)));
+
+      return fileNames;
+    } catch (error) {
+      logger.error({ error, prefix }, 'Failed to list image files');
+      throw error;
+    }
+  }
+
   async makePublic(objectName: string): Promise<void> {
     if (this.publicAccessMode === 'bucket') {
       return;
@@ -92,6 +107,20 @@ export class StorageService implements OnModuleInit {
       return buffer;
     } catch (error) {
       logger.error({ error, objectName }, 'Failed to download file');
+      throw error;
+    }
+  }
+
+  async uploadBuffer(buffer: Buffer, objectName: string, contentType: string): Promise<void> {
+    try {
+      const file = this.bucket.file(objectName);
+      await file.save(buffer, {
+        contentType,
+        resumable: false,
+      });
+      logger.info({ objectName, size: buffer.length }, 'Uploaded buffer to GCS');
+    } catch (error) {
+      logger.error({ error, objectName }, 'Failed to upload buffer');
       throw error;
     }
   }

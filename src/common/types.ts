@@ -49,3 +49,31 @@ export interface VideoResult {
   publicUrl: string;
   objectName: string;
 }
+
+// Banana (nano-banana / gemini-3-pro-image-preview) types
+export interface BananaGenerationParams {
+  prompt: string;
+  aspectRatio: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+  sampleCount: number;
+}
+
+export interface BananaRequest {
+  instances: Array<{ prompt: string }>;
+  parameters: {
+    aspectRatio: string;
+    sampleCount: number;
+    storageUri: string;
+  };
+}
+
+export interface BananaOperation {
+  name: string;
+  done?: boolean;
+  error?: {
+    code: number;
+    message: string;
+    details?: any[];
+  };
+  metadata?: any;
+  response?: any;
+}

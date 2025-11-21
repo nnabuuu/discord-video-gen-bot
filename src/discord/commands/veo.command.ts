@@ -11,6 +11,7 @@ import { StorageService } from '../../storage/storage.service';
 import { RateLimitService } from '../../rate-limit/rate-limit.service';
 import { VideoAttachmentService } from '../video-attachment.service';
 import { RequestTrackingService } from '../../database/request-tracking.service';
+import { RequestType } from '../../database/database.types';
 import { randomUUID } from 'crypto';
 
 export class VeoCommand {
@@ -110,7 +111,7 @@ export class VeoCommand {
       }
 
       // Rate limit check
-      const rateLimitResult = await this.rateLimitService.consume(userId);
+      const rateLimitResult = await this.rateLimitService.consume(userId, RequestType.VEO);
       if (!rateLimitResult.allowed) {
         const hours = Math.floor(rateLimitResult.waitSeconds! / 3600);
         const minutes = Math.floor((rateLimitResult.waitSeconds! % 3600) / 60);
@@ -130,6 +131,7 @@ export class VeoCommand {
         guild_id: guildId,
         channel_id: channelId,
         prompt: options.prompt,
+        request_type: RequestType.VEO,
         duration_seconds: options.length as 4 | 6 | 8,
         aspect_ratio: options.ratio as '16:9' | '9:16',
         resolution: resolution as '720p' | '1080p',

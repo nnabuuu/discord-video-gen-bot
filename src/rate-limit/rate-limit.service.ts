@@ -2,27 +2,37 @@ import { Injectable } from '@nestjs/common';
 import { logger } from '../common/logger';
 import { RateLimitResult } from '../common/types';
 import { RequestTrackingService } from '../database/request-tracking.service';
+import { RequestType } from '../database/database.types';
 
-const QUOTA_LIMIT = 5;
+const VEO_QUOTA_LIMIT = 5;
+const BANANA_QUOTA_LIMIT = 10;
 const QUOTA_WINDOW_HOURS = 24;
 
 @Injectable()
 export class RateLimitService {
   constructor(private readonly requestTrackingService: RequestTrackingService) {}
 
-  async consume(userId: string): Promise<RateLimitResult> {
+  private getQuotaLimit(requestType: RequestType): number {
+    return requestType === RequestType.BANANA ? BANANA_QUOTA_LIMIT : VEO_QUOTA_LIMIT;
+  }
+
+  async consume(userId: string, requestType: RequestType = RequestType.VEO): Promise<RateLimitResult> {
+    const quotaLimit = this.getQuotaLimit(requestType);
+
     try {
-      // Count recent requests in the last 24 hours
+      // Count recent requests in the last 24 hours for this type
       const count = await this.requestTrackingService.countRecentRequests(
         userId,
         QUOTA_WINDOW_HOURS,
+        requestType,
       );
 
-      if (count >= QUOTA_LIMIT) {
+      if (count >= quotaLimit) {
         // Get oldest request to calculate reset time
         const oldestRequest = await this.requestTrackingService.getOldestRequestTime(
           userId,
           QUOTA_WINDOW_HOURS,
+          requestType,
         );
 
         if (oldestRequest) {
@@ -47,13 +57,14 @@ export class RateLimitService {
 
       return {
         allowed: true,
-        remaining: QUOTA_LIMIT - count,
+        remaining: quotaLimit - count,
       };
     } catch (error) {
       logger.error(
         {
           error: error instanceof Error ? error.message : error,
           userId,
+          requestType,
         },
         'Rate limiting degraded - database unavailable',
       );
@@ -66,18 +77,22 @@ export class RateLimitService {
     }
   }
 
-  async getRemainingQuota(userId: string): Promise<number> {
+  async getRemainingQuota(userId: string, requestType: RequestType = RequestType.VEO): Promise<number> {
+    const quotaLimit = this.getQuotaLimit(requestType);
+
     try {
       const count = await this.requestTrackingService.countRecentRequests(
         userId,
         QUOTA_WINDOW_HOURS,
+        requestType,
       );
-      return Math.max(0, QUOTA_LIMIT - count);
+      return Math.max(0, quotaLimit - count);
     } catch (error) {
       logger.error(
         {
           error: error instanceof Error ? error.message : error,
           userId,
+          requestType,
         },
         'Failed to get remaining quota',
       );

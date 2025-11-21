@@ -173,10 +173,12 @@ export class TaskResumeService {
       const operationName = await this.veoService.startGeneration(
         {
           prompt: request.prompt,
-          durationSeconds: request.duration_seconds,
-          aspectRatio: request.aspect_ratio,
-          resolution: request.resolution,
-          generateAudio: request.generate_audio,
+          durationSeconds: request.duration_seconds ?? 8,
+          aspectRatio: (request.aspect_ratio === '16:9' || request.aspect_ratio === '9:16')
+            ? request.aspect_ratio
+            : '16:9',
+          resolution: request.resolution ?? '720p',
+          generateAudio: request.generate_audio ?? true,
           sampleCount: 1,
         },
         outputUri,
@@ -277,9 +279,9 @@ export class TaskResumeService {
       .setColor(Colors.Green)
       .setDescription(`**${request.prompt}**`)
       .addFields(
-        { name: 'Duration', value: `${request.duration_seconds}s`, inline: true },
+        { name: 'Duration', value: `${request.duration_seconds ?? 'N/A'}s`, inline: true },
         { name: 'Aspect Ratio', value: request.aspect_ratio, inline: true },
-        { name: 'Resolution', value: request.resolution, inline: true },
+        { name: 'Resolution', value: request.resolution ?? 'N/A', inline: true },
       )
       .setTimestamp();
 
