@@ -363,13 +363,11 @@ In Discord, use the `/banana` command with the following options:
 ```
 /banana prompt:"A cute cat wearing a tiny hat"
         ratio:1:1
-        count:2
 ```
 
 **Parameters:**
 - `prompt` (required): Text description of the image (5-600 characters)
 - `ratio` (optional): Aspect ratio - "1:1", "16:9", "9:16", "4:3", or "3:4" (default: "1:1")
-- `count` (optional): Number of images to generate, 1-4 (default: 1)
 
 ## Project Structure
 

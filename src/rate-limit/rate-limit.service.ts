@@ -5,7 +5,7 @@ import { RequestTrackingService } from '../database/request-tracking.service';
 import { RequestType } from '../database/database.types';
 
 const VEO_QUOTA_LIMIT = 5;
-const BANANA_QUOTA_LIMIT = 10;
+const BANANA_QUOTA_LIMIT = 5;
 const QUOTA_WINDOW_HOURS = 24;
 
 @Injectable()

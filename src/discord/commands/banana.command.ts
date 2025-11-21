@@ -35,13 +35,6 @@ export class BananaCommand {
           { name: '4:3 (standard)', value: '4:3' },
           { name: '3:4 (portrait standard)', value: '3:4' },
         ),
-    )
-    .addIntegerOption((option) =>
-      option
-        .setName('count')
-        .setDescription('Number of images to generate (1-4)')
-        .setMinValue(1)
-        .setMaxValue(4),
     );
 
   constructor(
@@ -79,7 +72,6 @@ export class BananaCommand {
       const rawOptions = {
         prompt: interaction.options.getString('prompt', true),
         ratio: interaction.options.getString('ratio') ?? '1:1',
-        count: interaction.options.getInteger('count') ?? 1,
       };
 
       const parseResult = BananaCommandOptionsSchema.safeParse(rawOptions);
@@ -107,7 +99,7 @@ export class BananaCommand {
         const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
 
         await interaction.editReply(
-          `⏱️ You've reached your daily limit of 10 images. Please try again in ${timeStr}.`,
+          `⏱️ You've reached your daily limit of 5 images. Please try again in ${timeStr}.`,
         );
         return;
       }
@@ -147,7 +139,7 @@ export class BananaCommand {
         {
           prompt: options.prompt,
           aspectRatio: options.ratio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
-          sampleCount: options.count,
+          sampleCount: 1,
         },
         outputUri,
       );

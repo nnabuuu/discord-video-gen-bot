@@ -25,7 +25,6 @@ export const BananaCommandOptionsSchema = z.object({
     z.literal('4:3'),
     z.literal('3:4'),
   ]).default('1:1'),
-  count: z.number().min(1).max(4).default(1),
 });
 
 export type BananaCommandOptions = z.infer<typeof BananaCommandOptionsSchema>;
