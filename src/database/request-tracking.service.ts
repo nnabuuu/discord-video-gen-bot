@@ -261,7 +261,10 @@ export class RequestTrackingService {
           ${typeFilter}
       `) as { count: string };
 
-      return parseInt(result.count, 10);
+      const count = parseInt(result.count, 10);
+      logger.debug({ userId, hoursAgo, requestType, count }, 'Counted recent requests');
+
+      return count;
     } catch (error) {
       logger.error(
         {

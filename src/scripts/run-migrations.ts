@@ -23,6 +23,7 @@ async function runMigrations() {
       'migrations/001_create_video_requests.sql',
       'migrations/002_add_indexes.sql',
       'migrations/003_add_request_type.sql',
+      'migrations/004_relax_video_constraints.sql',
     ];
 
     for (const migrationFile of migrations) {

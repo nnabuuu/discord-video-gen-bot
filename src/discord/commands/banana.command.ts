@@ -195,7 +195,7 @@ export class BananaCommand {
           { name: 'Images', value: `${files.length}`, inline: true },
         )
         .setFooter({
-          text: `Fast mode • ${rateLimitResult.remaining} remaining today`,
+          text: `Fast mode • ${rateLimitResult.remaining - 1} remaining today`,
         })
         .setTimestamp();
 
@@ -231,7 +231,7 @@ export class BananaCommand {
           userId,
           requestId,
           imageCount: publicUrls.length,
-          remaining: rateLimitResult.remaining,
+          remaining: rateLimitResult.remaining - 1,
         },
         'Image generation completed',
       );

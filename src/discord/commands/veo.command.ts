@@ -236,7 +236,7 @@ export class VeoCommand {
           { name: 'Resolution', value: resolution, inline: true },
         )
         .setFooter({
-          text: `Fast mode • ${rateLimitResult.remaining}/5 remaining today`,
+          text: `Fast mode • ${rateLimitResult.remaining - 1}/5 remaining today`,
         })
         .setTimestamp();
 
@@ -277,7 +277,7 @@ export class VeoCommand {
             userId,
             requestId: dbRequestId,
             videoCount: publicUrls.length,
-            remaining: rateLimitResult.remaining,
+            remaining: rateLimitResult.remaining - 1,
             attachmentMethod: 'url',
             fallbackReason: attachmentResult.reason,
           },
@@ -289,7 +289,7 @@ export class VeoCommand {
             userId,
             requestId: dbRequestId,
             videoCount: publicUrls.length,
-            remaining: rateLimitResult.remaining,
+            remaining: rateLimitResult.remaining - 1,
             attachmentMethod: 'attached',
           },
           'Video generation completed',
