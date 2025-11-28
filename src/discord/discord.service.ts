@@ -3,12 +3,14 @@ import { Client, GatewayIntentBits, Events, ChatInputCommandInteraction } from '
 import { logger } from '../common/logger';
 import { VeoCommand } from './commands/veo.command';
 import { BananaCommand } from './commands/banana.command';
+import { ApiKeyCommand } from './commands/api-key.command';
 import { VeoService } from '../veo/veo.service';
 import { BananaService } from '../banana/banana.service';
 import { StorageService } from '../storage/storage.service';
 import { RateLimitService } from '../rate-limit/rate-limit.service';
 import { VideoAttachmentService } from './video-attachment.service';
 import { RequestTrackingService } from '../database/request-tracking.service';
+import { UserApiKeyService } from '../database/user-api-key.service';
 import { TaskResumeService } from './task-resume.service';
 
 @Injectable()
@@ -16,6 +18,7 @@ export class DiscordService implements OnModuleInit {
   private client: Client;
   private veoCommand: VeoCommand;
   private bananaCommand: BananaCommand;
+  private apiKeyCommand: ApiKeyCommand;
 
   constructor(
     private readonly veoService: VeoService,
@@ -24,6 +27,7 @@ export class DiscordService implements OnModuleInit {
     private readonly rateLimitService: RateLimitService,
     private readonly videoAttachmentService: VideoAttachmentService,
     private readonly requestTrackingService: RequestTrackingService,
+    private readonly userApiKeyService: UserApiKeyService,
     private readonly taskResumeService: TaskResumeService,
   ) {
     this.client = new Client({
@@ -43,7 +47,10 @@ export class DiscordService implements OnModuleInit {
       storageService,
       rateLimitService,
       requestTrackingService,
+      userApiKeyService,
     );
+
+    this.apiKeyCommand = new ApiKeyCommand(userApiKeyService);
   }
 
   async onModuleInit() {
@@ -106,6 +113,8 @@ export class DiscordService implements OnModuleInit {
         await this.veoCommand.execute(interaction);
       } else if (commandName === 'banana') {
         await this.bananaCommand.execute(interaction);
+      } else if (commandName === 'api-key') {
+        await this.apiKeyCommand.execute(interaction);
       } else {
         await interaction.reply({
           content: 'Unknown command',

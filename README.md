@@ -6,11 +6,13 @@ A production-ready NestJS Discord bot that generates short videos and images usi
 
 - 🎬 Generate 4-8 second videos using Vertex AI Veo 3.1 (`/veo` command)
 - 🖼️ Generate images using Gemini 3 Pro Image Preview (`/banana` command)
+- 🔑 User API key binding for unlimited image generation (`/api-key` command)
 - 🎨 Customizable aspect ratio, resolution, and audio options
 - 🔒 Database-backed rate limiting (5 generations per 24 hours)
 - ☁️ Automatic GCS upload and public URL generation
 - 📊 Comprehensive logging with Pino
 - 💾 Full request tracking with PostgreSQL persistence
+- 🌐 Built-in web interface for API key management
 - 🚀 Built with NestJS and TypeScript
 
 ## Prerequisites
@@ -102,6 +104,7 @@ All migrations are stored in the `migrations/` directory as plain SQL files:
 
 - `001_create_video_requests.sql` - Create main table
 - `002_add_indexes.sql` - Add performance indexes
+- `005_create_user_api_keys.sql` - User API key storage
 
 #### Running Migrations
 
@@ -307,7 +310,7 @@ PUBLIC_ACCESS_MODE=object
 
 ### Register Slash Commands
 
-Before running the bot, register the slash commands (`/veo` and `/banana`) with Discord:
+Before running the bot, register the slash commands (`/veo`, `/banana`, and `/api-key`) with Discord:
 
 ```bash
 npm run register:commands
@@ -369,6 +372,31 @@ In Discord, use the `/banana` command with the following options:
 - `prompt` (required): Text description of the image (5-600 characters)
 - `ratio` (optional): Aspect ratio - "1:1", "16:9", "9:16", "4:3", or "3:4" (default: "1:1")
 
+**Rate Limits:**
+- 5 images per user per 24-hour rolling window (free credits)
+- Users with bound API keys get unlimited generations after free credits are exhausted
+
+### Using the /api-key Command
+
+Manage your Gemini API key for unlimited `/banana` image generation:
+
+```
+/api-key status     # Check if you have an API key connected
+/api-key connect    # Generate a link to connect your API key
+/api-key disconnect # Remove your connected API key
+```
+
+**How it works:**
+1. Run `/api-key connect` to get a unique connection URL
+2. Open the URL in your browser (link expires in 10 minutes)
+3. Enter your Gemini API key from [AI Studio](https://aistudio.google.com/apikey)
+4. Once connected, you get unlimited `/banana` generations after your 5 free daily credits are used
+
+**Security:**
+- API keys are encrypted with AES-256-GCM before storage
+- Keys are never logged or exposed in responses
+- You can disconnect your key at any time via the web interface or `/api-key disconnect`
+
 ## Project Structure
 
 ```
@@ -383,7 +411,8 @@ src/
 │   ├── database.module.ts
 │   ├── database.service.ts           # Slonik connection pool
 │   ├── database.types.ts             # Database type definitions
-│   └── request-tracking.service.ts   # Request CRUD operations
+│   ├── request-tracking.service.ts   # Request CRUD operations
+│   └── user-api-key.service.ts       # User API key encryption/storage
 ├── auth/
 │   ├── auth.module.ts
 │   └── auth.service.ts    # Google Cloud authentication
@@ -392,7 +421,7 @@ src/
 │   └── storage.service.ts # GCS operations
 ├── rate-limit/
 │   ├── rate-limit.module.ts
-│   └── rate-limit.service.ts # Redis/in-memory rate limiting
+│   └── rate-limit.service.ts # Database-backed rate limiting
 ├── veo/
 │   ├── veo.module.ts
 │   └── veo.service.ts     # Vertex AI Veo client
@@ -404,7 +433,12 @@ src/
 │   ├── discord.service.ts # Discord.js client
 │   └── commands/
 │       ├── veo.command.ts    # /veo command handler
-│       └── banana.command.ts # /banana command handler
+│       ├── banana.command.ts # /banana command handler
+│       └── api-key.command.ts # /api-key command handler
+├── api/
+│   ├── api.module.ts
+│   ├── connect.controller.ts      # API key management REST endpoints
+│   └── connect-page.controller.ts # Web interface for API key binding
 └── scripts/
     └── register-commands.ts # Slash command registration
 ```

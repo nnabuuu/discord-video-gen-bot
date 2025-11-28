@@ -7,6 +7,7 @@ import { StorageModule } from './storage/storage.module';
 import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
+import { ApiModule } from './api/api.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { DatabaseModule } from './database/database.module';
     VeoModule,
     BananaModule,
     DiscordModule,
+    ApiModule,
   ],
 })
 export class AppModule {}

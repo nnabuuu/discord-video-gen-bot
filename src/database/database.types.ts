@@ -56,3 +56,19 @@ export interface UpdateVideoRequestInput {
   video_urls?: string[];
   error_message?: string;
 }
+
+export interface UserApiKeyRow {
+  id: string;
+  user_id: string;
+  connection_code: string | null;
+  code_expires_at: Date | null;
+  api_key_encrypted: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface UserApiKeyStatus {
+  hasKey: boolean;
+  maskedKey: string | null;
+  connectedAt: string | null;
+}

@@ -11,6 +11,7 @@ import { BananaService } from '../../banana/banana.service';
 import { StorageService } from '../../storage/storage.service';
 import { RateLimitService } from '../../rate-limit/rate-limit.service';
 import { RequestTrackingService } from '../../database/request-tracking.service';
+import { UserApiKeyService } from '../../database/user-api-key.service';
 import { RequestType } from '../../database/database.types';
 import { randomUUID } from 'crypto';
 
@@ -42,6 +43,7 @@ export class BananaCommand {
     private readonly storageService: StorageService,
     private readonly rateLimitService: RateLimitService,
     private readonly requestTrackingService: RequestTrackingService,
+    private readonly userApiKeyService: UserApiKeyService,
   ) {}
 
   async execute(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -91,17 +93,31 @@ export class BananaCommand {
         return;
       }
 
-      // Rate limit check
+      // Rate limit check - free credits first, then user's API key
       const rateLimitResult = await this.rateLimitService.consume(userId, RequestType.BANANA);
-      if (!rateLimitResult.allowed) {
-        const hours = Math.floor(rateLimitResult.waitSeconds! / 3600);
-        const minutes = Math.floor((rateLimitResult.waitSeconds! % 3600) / 60);
-        const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+      let usingOwnKey = false;
+      let userApiKey: string | undefined;
 
-        await interaction.editReply(
-          `⏱️ You've reached your daily limit of 5 images. Please try again in ${timeStr}.`,
-        );
-        return;
+      if (!rateLimitResult.allowed) {
+        // Check if user has their own API key
+        userApiKey = await this.userApiKeyService.getApiKey(userId) ?? undefined;
+
+        if (userApiKey) {
+          // User has their own key, use it
+          usingOwnKey = true;
+          logger.info({ userId }, 'Using user API key (free credits exhausted)');
+        } else {
+          // No API key, show rate limit error
+          const hours = Math.floor(rateLimitResult.waitSeconds! / 3600);
+          const minutes = Math.floor((rateLimitResult.waitSeconds! % 3600) / 60);
+          const timeStr = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+          await interaction.editReply(
+            `⏱️ You've reached your daily limit of 5 images. Please try again in ${timeStr}.\n\n` +
+            `💡 **Tip:** Use \`/api-key connect\` to bind your own Gemini API key for unlimited generations!`,
+          );
+          return;
+        }
       }
 
       // Create request in database
@@ -142,6 +158,7 @@ export class BananaCommand {
           sampleCount: 1,
         },
         outputUri,
+        userApiKey,
       );
 
       // Progress updates
@@ -195,7 +212,9 @@ export class BananaCommand {
           { name: 'Images', value: `${files.length}`, inline: true },
         )
         .setFooter({
-          text: `Fast mode • ${rateLimitResult.remaining - 1} remaining today`,
+          text: usingOwnKey
+            ? 'Using your API key (free credits exhausted)'
+            : `Fast mode • ${rateLimitResult.remaining - 1} remaining today`,
         })
         .setTimestamp();
 
@@ -236,8 +255,15 @@ export class BananaCommand {
         'Image generation completed',
       );
     } catch (error) {
-      const errorMessage =
+      let errorMessage =
         error instanceof Error ? error.message : 'An unexpected error occurred';
+
+      // Truncate long error messages and extract meaningful part
+      if (errorMessage.includes('403')) {
+        errorMessage = 'Access denied. The API key may not have permission for this model.';
+      } else if (errorMessage.length > 200) {
+        errorMessage = errorMessage.substring(0, 200) + '...';
+      }
 
       logger.error(
         {

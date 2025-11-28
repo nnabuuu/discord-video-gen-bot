@@ -22,6 +22,8 @@ async function bootstrap() {
     process.exit(1);
   }
 
+  const port = parseInt(process.env.PORT || '3000', 10);
+
   logger.info(
     {
       nodeEnv: process.env.NODE_ENV,
@@ -29,14 +31,15 @@ async function bootstrap() {
       gcpLocation: process.env.GCP_LOCATION,
       bucket: process.env.OUTPUT_BUCKET,
       publicAccessMode: process.env.PUBLIC_ACCESS_MODE,
+      port,
     },
     'Starting Discord Video Gen Bot',
   );
 
-  await app.init();
+  // Start HTTP server for API endpoints and web interface
+  await app.listen(port);
 
-  // Keep the process running
-  logger.info('Bot is running. Press Ctrl+C to exit.');
+  logger.info({ port }, 'HTTP server listening. Bot is running. Press Ctrl+C to exit.');
 }
 
 bootstrap().catch((error) => {

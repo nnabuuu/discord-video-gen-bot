@@ -28,9 +28,10 @@ export class BananaService {
   async startGeneration(
     params: BananaGenerationParams,
     outputStorageUri: string,
+    userApiKey?: string,
   ): Promise<string> {
     if (this.apiMode === 'gemini') {
-      return this.startGenerationGemini(params, outputStorageUri);
+      return this.startGenerationGemini(params, outputStorageUri, userApiKey);
     } else {
       return this.startGenerationVertex(params, outputStorageUri);
     }
@@ -39,14 +40,23 @@ export class BananaService {
   private async startGenerationGemini(
     params: BananaGenerationParams,
     outputStorageUri: string,
+    userApiKey?: string,
   ): Promise<string> {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = userApiKey || process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error('GEMINI_API_KEY is required when BANANA_API_MODE=gemini');
     }
 
+    const usingUserKey = !!userApiKey;
+
     const modelId = process.env.BANANA_MODEL_ID || 'gemini-3-pro-image-preview';
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+
+    // Separate configurable API URLs for free credits vs user's own key
+    const defaultGeminiUrl = 'https://generativelanguage.googleapis.com';
+    const baseUrl = usingUserKey
+      ? (process.env.USER_GEMINI_API_URL || defaultGeminiUrl)
+      : (process.env.FREE_CREDIT_GEMINI_API_URL || defaultGeminiUrl);
+    const endpoint = `${baseUrl}/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
 
     const requestBody = {
       contents: [
@@ -65,6 +75,8 @@ export class BananaService {
         prompt: params.prompt.substring(0, 50) + (params.prompt.length > 50 ? '...' : ''),
         aspectRatio: params.aspectRatio,
         apiMode: 'gemini',
+        usingUserKey,
+        apiBaseUrl: baseUrl,
       },
       'Starting Banana image generation (Gemini API)',
     );
