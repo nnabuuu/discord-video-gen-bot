@@ -70,11 +70,19 @@ export class ConnectPageController {
         </div>
 
         <div id="connect-section" class="section">
-          <h2>Connect New API Key</h2>
+          <h2 id="connect-title">Connect API Key</h2>
           <p class="hint">Get your SightAI API key from <a href="https://gateway.sightai.io" target="_blank">gateway.sightai.io</a></p>
+
+          <div id="edit-button-wrapper" style="display: none;">
+            <button type="button" id="edit-btn" class="btn-secondary">Modify API Key</button>
+          </div>
+
           <form id="connect-form">
             <input type="password" id="api-key" placeholder="Enter your SightAI API key" required>
-            <button type="submit" id="submit-btn">Connect API Key</button>
+            <div class="form-buttons">
+              <button type="button" id="cancel-btn" class="btn-secondary" style="display: none;">Cancel</button>
+              <button type="submit" id="submit-btn">Connect API Key</button>
+            </div>
           </form>
         </div>
 
@@ -121,6 +129,10 @@ export class ConnectPageController {
     function renderStatus(status) {
       const statusInfo = document.getElementById('status-info');
       const disconnectSection = document.getElementById('disconnect-section');
+      const connectForm = document.getElementById('connect-form');
+      const editButtonWrapper = document.getElementById('edit-button-wrapper');
+      const cancelBtn = document.getElementById('cancel-btn');
+      const connectTitle = document.getElementById('connect-title');
 
       if (status.hasKey) {
         statusInfo.innerHTML = '<div class="status-connected"><span class="status-dot connected"></span>Connected: <code>' + status.maskedKey + '</code></div>';
@@ -128,13 +140,37 @@ export class ConnectPageController {
           statusInfo.innerHTML += '<p class="connected-at">Connected ' + new Date(status.connectedAt).toLocaleString() + '</p>';
         }
         disconnectSection.style.display = 'block';
-        document.querySelector('#connect-section h2').textContent = 'Replace API Key';
+        connectTitle.textContent = 'Replace API Key';
+        // Hide form, show edit button when key exists
+        connectForm.style.display = 'none';
+        editButtonWrapper.style.display = 'block';
+        cancelBtn.style.display = 'none';
       } else {
         statusInfo.innerHTML = '<div class="status-disconnected"><span class="status-dot disconnected"></span>No API key connected</div>';
         disconnectSection.style.display = 'none';
-        document.querySelector('#connect-section h2').textContent = 'Connect API Key';
+        connectTitle.textContent = 'Connect API Key';
+        // Show form when no key exists
+        connectForm.style.display = 'block';
+        editButtonWrapper.style.display = 'none';
+        cancelBtn.style.display = 'none';
       }
     }
+
+    // Edit button click - show form
+    document.getElementById('edit-btn').addEventListener('click', () => {
+      document.getElementById('connect-form').style.display = 'block';
+      document.getElementById('edit-button-wrapper').style.display = 'none';
+      document.getElementById('cancel-btn').style.display = 'inline-block';
+      document.getElementById('api-key').focus();
+    });
+
+    // Cancel button click - hide form
+    document.getElementById('cancel-btn').addEventListener('click', () => {
+      document.getElementById('connect-form').style.display = 'none';
+      document.getElementById('edit-button-wrapper').style.display = 'block';
+      document.getElementById('api-key').value = '';
+      hideMessages();
+    });
 
     document.getElementById('connect-form').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -410,6 +446,16 @@ export class ConnectPageController {
       transform: none;
     }
 
+    .btn-secondary {
+      background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+      color: #fff;
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+      transform: translateY(-1px);
+    }
+
     .btn-danger {
       background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
       color: #fff;
@@ -417,6 +463,15 @@ export class ConnectPageController {
 
     .btn-danger:hover:not(:disabled) {
       background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    }
+
+    .form-buttons {
+      display: flex;
+      gap: 12px;
+    }
+
+    .form-buttons button {
+      flex: 1;
     }
 
     .error-message {
