@@ -218,7 +218,7 @@ export class BananaCommand {
         )
         .setFooter({
           text: usingOwnKey
-            ? 'Using your API key (free credits exhausted)'
+            ? 'Using your API key • Unlimited'
             : `Fast mode • ${rateLimitResult.remaining} remaining today`,
         })
         .setTimestamp();
