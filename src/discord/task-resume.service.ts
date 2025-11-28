@@ -3,9 +3,10 @@ import { Client, TextChannel, EmbedBuilder, Colors } from 'discord.js';
 import { logger } from '../common/logger';
 import { RequestTrackingService } from '../database/request-tracking.service';
 import { VeoService } from '../veo/veo.service';
+import { BananaService } from '../banana/banana.service';
 import { StorageService } from '../storage/storage.service';
 import { VideoAttachmentService } from './video-attachment.service';
-import { VideoRequestRow, VideoRequestStatus } from '../database/database.types';
+import { VideoRequestRow, VideoRequestStatus, RequestType } from '../database/database.types';
 
 @Injectable()
 export class TaskResumeService {
@@ -14,6 +15,7 @@ export class TaskResumeService {
   constructor(
     private readonly requestTrackingService: RequestTrackingService,
     private readonly veoService: VeoService,
+    private readonly bananaService: BananaService,
     private readonly storageService: StorageService,
     private readonly videoAttachmentService: VideoAttachmentService,
   ) {}
@@ -150,11 +152,14 @@ export class TaskResumeService {
 
   async resumePendingRequest(request: VideoRequestRow): Promise<void> {
     const requestId = request.id;
+    const isBanana = request.request_type === RequestType.BANANA;
+
     logger.info(
       {
         requestId,
         userId: request.user_id,
         prompt: request.prompt.substring(0, 50),
+        requestType: request.request_type,
       },
       'Resuming pending request',
     );
@@ -169,25 +174,39 @@ export class TaskResumeService {
       );
       const outputUri = this.storageService.buildOutputUri(prefix);
 
-      // Start video generation
-      const operationName = await this.veoService.startGeneration(
-        {
-          prompt: request.prompt,
-          durationSeconds: request.duration_seconds ?? 8,
-          aspectRatio: (request.aspect_ratio === '16:9' || request.aspect_ratio === '9:16')
-            ? request.aspect_ratio
-            : '16:9',
-          resolution: request.resolution ?? '720p',
-          generateAudio: request.generate_audio ?? true,
-          sampleCount: 1,
-        },
-        outputUri,
-      );
+      let operationName: string;
+
+      if (isBanana) {
+        // Start image generation
+        operationName = await this.bananaService.startGeneration(
+          {
+            prompt: request.prompt,
+            aspectRatio: request.aspect_ratio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
+            sampleCount: 1,
+          },
+          outputUri,
+        );
+      } else {
+        // Start video generation
+        operationName = await this.veoService.startGeneration(
+          {
+            prompt: request.prompt,
+            durationSeconds: request.duration_seconds ?? 8,
+            aspectRatio: (request.aspect_ratio === '16:9' || request.aspect_ratio === '9:16')
+              ? request.aspect_ratio
+              : '16:9',
+            resolution: request.resolution ?? '720p',
+            generateAudio: request.generate_audio ?? true,
+            sampleCount: 1,
+          },
+          outputUri,
+        );
+      }
 
       // Update database status to generating
       await this.requestTrackingService.setGenerating(requestId, operationName, prefix);
 
-      logger.info({ requestId, operationName }, 'Pending request generation started');
+      logger.info({ requestId, operationName, requestType: request.request_type }, 'Pending request generation started');
 
       // Now poll for completion (delegate to resumeGeneratingRequest logic)
       await this.pollAndComplete(requestId, operationName, prefix, request);
@@ -247,18 +266,26 @@ export class TaskResumeService {
     prefix: string,
     request: VideoRequestRow,
   ): Promise<void> {
+    const isBanana = request.request_type === RequestType.BANANA;
+
     // Poll for operation completion (no progress callback for resumed tasks)
-    await this.veoService.pollOperation(operationName, prefix);
+    if (isBanana) {
+      await this.bananaService.pollOperation(operationName, prefix);
+    } else {
+      await this.veoService.pollOperation(operationName, prefix);
+    }
 
     // List generated files
-    const files = await this.storageService.listFiles(prefix);
+    const files = isBanana
+      ? await this.storageService.listImageFiles(prefix)
+      : await this.storageService.listFiles(prefix);
 
     if (files.length === 0) {
       await this.requestTrackingService.setFailed(
         requestId,
-        'No video files found after generation',
+        isBanana ? 'No image files found after generation' : 'No video files found after generation',
       );
-      logger.warn({ requestId }, 'No video files found');
+      logger.warn({ requestId, requestType: request.request_type }, 'No files found');
       return;
     }
 
@@ -272,25 +299,34 @@ export class TaskResumeService {
     // Update database
     await this.requestTrackingService.setCompleted(requestId, publicUrls);
 
-    logger.info({ requestId, videoCount: publicUrls.length }, 'Video generation completed');
+    logger.info({ requestId, fileCount: publicUrls.length, requestType: request.request_type }, 'Generation completed');
 
     // Build completion embed
     const completionEmbed = new EmbedBuilder()
       .setColor(Colors.Green)
-      .setDescription(`**${request.prompt}**`)
-      .addFields(
+      .setDescription(`**${request.prompt}**`);
+
+    if (isBanana) {
+      completionEmbed.addFields(
+        { name: 'Aspect Ratio', value: request.aspect_ratio, inline: true },
+        { name: 'Images', value: `${files.length}`, inline: true },
+      );
+    } else {
+      completionEmbed.addFields(
         { name: 'Duration', value: `${request.duration_seconds ?? 'N/A'}s`, inline: true },
         { name: 'Aspect Ratio', value: request.aspect_ratio, inline: true },
         { name: 'Resolution', value: request.resolution ?? 'N/A', inline: true },
-      )
-      .setTimestamp();
+      );
+    }
+
+    completionEmbed.setTimestamp();
 
     // Send notification to channel
     const sent = await this.sendChannelMessage(
       request.channel_id,
       request.user_id,
       completionEmbed,
-      files[0], // First video file
+      files[0], // First file
     );
 
     if (!sent) {
