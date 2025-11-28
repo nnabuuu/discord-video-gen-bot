@@ -27,6 +27,11 @@ export class RateLimitService {
         requestType,
       );
 
+      logger.info(
+        { userId, requestType, count, quotaLimit },
+        'Rate limit count',
+      );
+
       if (count >= quotaLimit) {
         // Get oldest request to calculate reset time
         const oldestRequest = await this.requestTrackingService.getOldestRequestTime(

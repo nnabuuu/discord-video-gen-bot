@@ -98,6 +98,11 @@ export class BananaCommand {
       let usingOwnKey = false;
       let userApiKey: string | undefined;
 
+      logger.info(
+        { userId, allowed: rateLimitResult.allowed, remaining: rateLimitResult.remaining },
+        'Rate limit check result',
+      );
+
       if (!rateLimitResult.allowed) {
         // Check if user has their own API key
         userApiKey = await this.userApiKeyService.getApiKey(userId) ?? undefined;
