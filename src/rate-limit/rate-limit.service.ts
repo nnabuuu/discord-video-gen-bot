@@ -57,7 +57,7 @@ export class RateLimitService {
 
       return {
         allowed: true,
-        remaining: quotaLimit - count,
+        remaining: Math.max(0, quotaLimit - count - 1),
       };
     } catch (error) {
       logger.error(

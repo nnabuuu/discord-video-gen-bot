@@ -250,7 +250,8 @@ export class BananaCommand {
           userId,
           requestId,
           imageCount: publicUrls.length,
-          remaining: rateLimitResult.remaining - 1,
+          usingOwnKey,
+          remaining: usingOwnKey ? undefined : rateLimitResult.remaining,
         },
         'Image generation completed',
       );
