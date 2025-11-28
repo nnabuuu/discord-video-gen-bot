@@ -16,3 +16,10 @@ Use `@/openspec/AGENTS.md` to learn:
 Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
+
+# Database Migrations
+
+When adding new database migrations:
+1. Create the migration file in `migrations/` (e.g., `006_your_migration.sql`)
+2. **IMPORTANT**: Also update `src/scripts/run-migrations.ts` to include the new migration in the `migrations` array
+3. The migration script uses a hardcoded list - it does NOT auto-discover migration files
