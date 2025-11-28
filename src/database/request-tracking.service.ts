@@ -294,9 +294,10 @@ export class RequestTrackingService {
           ${typeFilter}
         ORDER BY created_at ASC
         LIMIT 1
-      `) as { created_at: Date } | null;
+      `) as { created_at: string | Date } | null;
 
-      return result?.created_at || null;
+      // Slonik returns timestamps as strings, convert to Date
+      return result?.created_at ? new Date(result.created_at) : null;
     } catch (error) {
       logger.error(
         {
