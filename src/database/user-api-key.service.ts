@@ -146,7 +146,10 @@ export class UserApiKeyService {
       return {
         hasKey: !!row.api_key_encrypted,
         maskedKey,
-        connectedAt: row.api_key_encrypted ? row.updated_at.toISOString() : null,
+        // Slonik returns timestamps as strings, convert to ISO format
+        connectedAt: row.api_key_encrypted && row.updated_at
+          ? new Date(row.updated_at).toISOString()
+          : null,
       };
     } catch (error) {
       logger.error(
@@ -347,7 +350,8 @@ export class UserApiKeyService {
       return {
         hasKey: true,
         maskedKey,
-        connectedAt: row.updated_at.toISOString(),
+        // Slonik returns timestamps as strings
+        connectedAt: new Date(row.updated_at).toISOString(),
       };
     } catch (error) {
       logger.error(
