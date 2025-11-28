@@ -49,7 +49,14 @@ export class ConnectPageController {
   <div class="container">
     <div class="card">
       <div class="logo">🍌</div>
-      <h1>Connect Your Gemini API Key</h1>
+      <h1>Connect Your SightAI API Key</h1>
+
+      <div class="security-warning">
+        <span class="warning-icon">🔒</span>
+        <div>
+          <strong>Security Check:</strong> Please verify you are on <code>https://app.sightai.io</code> before entering your API key to avoid phishing attacks.
+        </div>
+      </div>
 
       <div id="loading" class="loading">
         <div class="spinner"></div>
@@ -64,9 +71,9 @@ export class ConnectPageController {
 
         <div id="connect-section" class="section">
           <h2>Connect New API Key</h2>
-          <p class="hint">Get your API key from <a href="https://aistudio.google.com/apikey" target="_blank">Google AI Studio</a></p>
+          <p class="hint">Get your SightAI API key from <a href="https://gateway.sightai.io" target="_blank">gateway.sightai.io</a></p>
           <form id="connect-form">
-            <input type="password" id="api-key" placeholder="Enter your Gemini API key" required>
+            <input type="password" id="api-key" placeholder="Enter your SightAI API key" required>
             <button type="submit" id="submit-btn">Connect API Key</button>
           </form>
         </div>
@@ -262,6 +269,29 @@ export class ConnectPageController {
       text-align: center;
       margin-bottom: 24px;
       color: #fff;
+    }
+
+    .security-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #1e3a5f;
+      border: 1px solid #2563eb;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      color: #93c5fd;
+    }
+
+    .security-warning .warning-icon {
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .security-warning code {
+      background: #1e40af;
+      color: #bfdbfe;
     }
 
     h2 {
