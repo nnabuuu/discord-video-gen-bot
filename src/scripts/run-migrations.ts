@@ -24,6 +24,7 @@ async function runMigrations() {
       'migrations/002_add_indexes.sql',
       'migrations/003_add_request_type.sql',
       'migrations/004_relax_video_constraints.sql',
+      'migrations/005_create_user_api_keys.sql',
     ];
 
     for (const migrationFile of migrations) {
