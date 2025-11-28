@@ -56,7 +56,11 @@ export class BananaService {
     const baseUrl = usingUserKey
       ? (process.env.USER_GEMINI_API_URL || defaultGeminiUrl)
       : (process.env.FREE_CREDIT_GEMINI_API_URL || defaultGeminiUrl);
-    const endpoint = `${baseUrl}/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
+
+    // User's own key uses Bearer auth, free credits use query param
+    const endpoint = usingUserKey
+      ? `${baseUrl}/v1beta/models/${modelId}:generateContent`
+      : `${baseUrl}/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
 
     const requestBody = {
       contents: [
@@ -69,6 +73,14 @@ export class BananaService {
         responseModalities: ['IMAGE', 'TEXT'],
       },
     };
+
+    // Build headers - add Authorization for user's own key
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (usingUserKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
 
     logger.info(
       {
@@ -84,9 +96,7 @@ export class BananaService {
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(requestBody),
       });
 
