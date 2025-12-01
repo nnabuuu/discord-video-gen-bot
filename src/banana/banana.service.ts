@@ -82,6 +82,27 @@ export class BananaService {
       headers['Authorization'] = `Bearer ${apiKey}`;
     }
 
+    // Debug logging when BANANA_DEBUG=true
+    if (process.env.BANANA_DEBUG === 'true') {
+      logger.warn(
+        {
+          endpoint,
+          headers: {
+            ...headers,
+            Authorization: headers.Authorization
+              ? `Bearer ${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`
+              : undefined,
+          },
+          apiKeyLength: apiKey.length,
+          apiKeyPrefix: apiKey.substring(0, 8),
+          apiKeySuffix: apiKey.substring(apiKey.length - 4),
+          usingUserKey,
+          baseUrl,
+        },
+        'DEBUG: Banana API request details',
+      );
+    }
+
     logger.info(
       {
         prompt: params.prompt.substring(0, 50) + (params.prompt.length > 50 ? '...' : ''),
