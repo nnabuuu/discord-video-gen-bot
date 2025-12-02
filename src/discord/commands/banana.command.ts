@@ -261,6 +261,45 @@ export class BananaCommand {
         'Image generation completed',
       );
     } catch (error) {
+      // Handle case where model returned text instead of an image
+      if (error instanceof Error && error.message === 'MODEL_RETURNED_TEXT') {
+        const textResponse = (error as any).textResponse as string;
+        const truncatedText = textResponse.length > 1500
+          ? textResponse.substring(0, 1500) + '...'
+          : textResponse;
+
+        logger.warn(
+          { userId, guildId, channelId, textResponseLength: textResponse.length },
+          'Model returned text instead of image',
+        );
+
+        const textEmbed = new EmbedBuilder()
+          .setColor(Colors.Orange)
+          .setTitle('📝 Model Returned Text Instead of Image')
+          .setDescription(
+            'The AI model chose to respond with text rather than generating an image. ' +
+            'Try rephrasing your prompt to be more visual, e.g.:\n' +
+            '• "An illustration of..."\n' +
+            '• "A digital artwork showing..."\n' +
+            '• "A photograph of..."'
+          )
+          .addFields({
+            name: 'Model Response',
+            value: truncatedText.length > 1024
+              ? truncatedText.substring(0, 1021) + '...'
+              : truncatedText,
+          })
+          .setFooter({ text: 'Tip: Be specific about wanting a visual image' })
+          .setTimestamp();
+
+        if (interaction.deferred) {
+          await interaction.editReply({ embeds: [textEmbed] });
+        } else {
+          await interaction.reply({ embeds: [textEmbed] });
+        }
+        return;
+      }
+
       let errorMessage =
         error instanceof Error ? error.message : 'An unexpected error occurred';
 

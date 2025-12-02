@@ -151,10 +151,18 @@ export class BananaService {
       // Gemini API returns inline image data, save to GCS
       const imageData = this.extractImageFromGeminiResponse(result);
       if (!imageData) {
+        // Check if the model returned text instead of an image
+        const textResponse = this.extractTextFromGeminiResponse(result);
         logger.error(
-          { response: JSON.stringify(result).substring(0, 1000) },
+          { response: JSON.stringify(result).substring(0, 1000), hasText: !!textResponse },
           'No image data in Gemini response',
         );
+
+        if (textResponse) {
+          const error = new Error('MODEL_RETURNED_TEXT');
+          (error as any).textResponse = textResponse;
+          throw error;
+        }
         throw new Error('No image data in Gemini response');
       }
 
@@ -197,6 +205,25 @@ export class BananaService {
       return null;
     } catch (error) {
       logger.error({ error, result }, 'Failed to extract image from Gemini response');
+      return null;
+    }
+  }
+
+  private extractTextFromGeminiResponse(result: any): string | null {
+    try {
+      const candidates = result.candidates || [];
+      const textParts: string[] = [];
+      for (const candidate of candidates) {
+        const parts = candidate.content?.parts || [];
+        for (const part of parts) {
+          if (part.text) {
+            textParts.push(part.text);
+          }
+        }
+      }
+      return textParts.length > 0 ? textParts.join('\n') : null;
+    } catch (error) {
+      logger.error({ error }, 'Failed to extract text from Gemini response');
       return null;
     }
   }
