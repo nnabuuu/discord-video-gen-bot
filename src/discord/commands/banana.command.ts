@@ -273,9 +273,10 @@ export class BananaCommand {
           'Model returned text instead of image',
         );
 
-        const promptText = options.prompt.length > 200
-          ? options.prompt.substring(0, 197) + '...'
-          : options.prompt;
+        const userPrompt = interaction.options.getString('prompt', true);
+        const promptText = userPrompt.length > 200
+          ? userPrompt.substring(0, 197) + '...'
+          : userPrompt;
 
         const textEmbed = new EmbedBuilder()
           .setColor(Colors.Orange)
