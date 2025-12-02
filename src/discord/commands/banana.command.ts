@@ -273,6 +273,10 @@ export class BananaCommand {
           'Model returned text instead of image',
         );
 
+        const promptText = options.prompt.length > 200
+          ? options.prompt.substring(0, 197) + '...'
+          : options.prompt;
+
         const textEmbed = new EmbedBuilder()
           .setColor(Colors.Orange)
           .setTitle('📝 Model Returned Text Instead of Image')
@@ -283,12 +287,18 @@ export class BananaCommand {
             '• "A digital artwork showing..."\n' +
             '• "A photograph of..."'
           )
-          .addFields({
-            name: 'Model Response',
-            value: truncatedText.length > 1024
-              ? truncatedText.substring(0, 1021) + '...'
-              : truncatedText,
-          })
+          .addFields(
+            {
+              name: 'Your Prompt',
+              value: promptText,
+            },
+            {
+              name: 'Model Response',
+              value: truncatedText.length > 1024
+                ? truncatedText.substring(0, 1021) + '...'
+                : truncatedText,
+            },
+          )
           .setFooter({ text: 'Tip: Be specific about wanting a visual image' })
           .setTimestamp();
 
