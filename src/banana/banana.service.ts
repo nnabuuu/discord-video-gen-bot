@@ -151,6 +151,10 @@ export class BananaService {
       // Gemini API returns inline image data, save to GCS
       const imageData = this.extractImageFromGeminiResponse(result);
       if (!imageData) {
+        logger.error(
+          { response: JSON.stringify(result).substring(0, 1000) },
+          'No image data in Gemini response',
+        );
         throw new Error('No image data in Gemini response');
       }
 
