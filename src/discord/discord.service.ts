@@ -3,9 +3,13 @@ import { Client, GatewayIntentBits, Events, ChatInputCommandInteraction } from '
 import { logger } from '../common/logger';
 import { VeoCommand } from './commands/veo.command';
 import { BananaCommand } from './commands/banana.command';
+import { QwenImageCommand } from './commands/qwen-image.command';
+import { WanCommand } from './commands/wan.command';
 import { ApiKeyCommand } from './commands/api-key.command';
 import { VeoService } from '../veo/veo.service';
 import { BananaService } from '../banana/banana.service';
+import { QwenImageService } from '../qwen-image/qwen-image.service';
+import { WanService } from '../wan/wan.service';
 import { StorageService } from '../storage/storage.service';
 import { RateLimitService } from '../rate-limit/rate-limit.service';
 import { VideoAttachmentService } from './video-attachment.service';
@@ -18,11 +22,15 @@ export class DiscordService implements OnModuleInit {
   private client: Client;
   private veoCommand: VeoCommand;
   private bananaCommand: BananaCommand;
+  private qwenImageCommand: QwenImageCommand;
+  private wanCommand: WanCommand;
   private apiKeyCommand: ApiKeyCommand;
 
   constructor(
     private readonly veoService: VeoService,
     private readonly bananaService: BananaService,
+    private readonly qwenImageService: QwenImageService,
+    private readonly wanService: WanService,
     private readonly storageService: StorageService,
     private readonly rateLimitService: RateLimitService,
     private readonly videoAttachmentService: VideoAttachmentService,
@@ -48,6 +56,21 @@ export class DiscordService implements OnModuleInit {
       rateLimitService,
       requestTrackingService,
       userApiKeyService,
+    );
+
+    this.qwenImageCommand = new QwenImageCommand(
+      qwenImageService,
+      storageService,
+      rateLimitService,
+      requestTrackingService,
+    );
+
+    this.wanCommand = new WanCommand(
+      wanService,
+      storageService,
+      rateLimitService,
+      videoAttachmentService,
+      requestTrackingService,
     );
 
     this.apiKeyCommand = new ApiKeyCommand(userApiKeyService);
@@ -113,6 +136,10 @@ export class DiscordService implements OnModuleInit {
         await this.veoCommand.execute(interaction);
       } else if (commandName === 'banana') {
         await this.bananaCommand.execute(interaction);
+      } else if (commandName === 'qwen-image') {
+        await this.qwenImageCommand.execute(interaction);
+      } else if (commandName === 'wan') {
+        await this.wanCommand.execute(interaction);
       } else if (commandName === 'api-key') {
         await this.apiKeyCommand.execute(interaction);
       } else {

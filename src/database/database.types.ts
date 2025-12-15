@@ -9,6 +9,8 @@ export enum VideoRequestStatus {
 export enum RequestType {
   VEO = 'veo',
   BANANA = 'banana',
+  QWEN_IMAGE = 'qwen_image',
+  WAN= 'wan',
 }
 
 export interface VideoRequestRow {

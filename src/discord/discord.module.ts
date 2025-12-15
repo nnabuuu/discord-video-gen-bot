@@ -7,9 +7,11 @@ import { BananaModule } from '../banana/banana.module';
 import { StorageModule } from '../storage/storage.module';
 import { RateLimitModule } from '../rate-limit/rate-limit.module';
 import { DatabaseModule } from '../database/database.module';
+import { QwenImageModule } from 'src/qwen-image/qwen-image.module';
+import { WanModule } from 'src/wan/wan.module';
 
 @Module({
-  imports: [VeoModule, BananaModule, StorageModule, RateLimitModule, DatabaseModule],
+  imports: [VeoModule, BananaModule, QwenImageModule, WanModule, StorageModule, RateLimitModule, DatabaseModule],
   providers: [DiscordService, VideoAttachmentService, TaskResumeService],
 })
 export class DiscordModule {}
