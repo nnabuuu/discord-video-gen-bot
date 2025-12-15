@@ -144,7 +144,7 @@ export class DiscordService implements OnModuleInit {
         await this.apiKeyCommand.execute(interaction);
       } else {
         await interaction.reply({
-          content: 'Unknown command',
+          content: `Unknown command: ${commandName}`,
           ephemeral: true,
         });
       }
