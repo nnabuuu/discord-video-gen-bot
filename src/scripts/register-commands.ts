@@ -4,6 +4,8 @@ import { VeoCommand } from '../discord/commands/veo.command';
 import { BananaCommand } from '../discord/commands/banana.command';
 import { ApiKeyCommand } from '../discord/commands/api-key.command';
 import { logger } from '../common/logger';
+import { QwenImageCommand } from '../discord/commands/qwen-image.command';
+import { WanCommand } from '../discord/commands/wan.command';
 
 // Load environment variables
 config();
@@ -20,6 +22,8 @@ const commands = [
   VeoCommand.data.toJSON(),
   BananaCommand.data.toJSON(),
   ApiKeyCommand.data.toJSON(),
+  QwenImageCommand.data.toJSON(),
+  WanCommand.data.toJSON(),
 ];
 
 const rest = new REST({ version: '10' }).setToken(token);

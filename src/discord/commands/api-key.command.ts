@@ -10,7 +10,7 @@ import { UserApiKeyService } from '../../database/user-api-key.service';
 export class ApiKeyCommand {
   public static readonly data = new SlashCommandBuilder()
     .setName('api-key')
-    .setDescription('Manage your SightAI API key for unlimited /banana image generation')
+    .setDescription('Manage your AnyInt API key for unlimited /banana image generation')
     .addSubcommand((subcommand) =>
       subcommand
         .setName('status')
@@ -19,7 +19,7 @@ export class ApiKeyCommand {
     .addSubcommand((subcommand) =>
       subcommand
         .setName('connect')
-        .setDescription('Generate a link to connect your SightAI API key'),
+        .setDescription('Generate a link to connect your AnyInt API key'),
     )
     .addSubcommand((subcommand) =>
       subcommand
@@ -81,7 +81,7 @@ export class ApiKeyCommand {
     if (status.hasKey) {
       embed
         .setColor(Colors.Green)
-        .setDescription('Your SightAI API key is connected.')
+        .setDescription('Your AnyInt API key is connected.')
         .addFields(
           { name: 'API Key', value: `\`${status.maskedKey}\``, inline: true },
           {
@@ -99,7 +99,7 @@ export class ApiKeyCommand {
         .setDescription('No API key connected.')
         .addFields({
           name: 'How to connect',
-          value: 'Use `/api-key connect` to bind your SightAI API key and unlock unlimited image generation.',
+          value: 'Use `/api-key connect` to bind your AnyInt API key and unlock unlimited image generation.',
         });
     }
 
@@ -115,7 +115,7 @@ export class ApiKeyCommand {
     const embed = new EmbedBuilder()
       .setTitle('Connect Your API Key')
       .setColor(Colors.Blue)
-      .setDescription('Click the link below to connect your SightAI API key.')
+      .setDescription('Click the link below to connect your AnyInt API key.')
       .addFields(
         {
           name: 'Connection URL',
@@ -165,7 +165,7 @@ export class ApiKeyCommand {
       const embed = new EmbedBuilder()
         .setTitle('API Key Disconnected')
         .setColor(Colors.Orange)
-        .setDescription('Your SightAI API key has been removed.')
+        .setDescription('Your AnyInt API key has been removed.')
         .addFields({
           name: 'What now?',
           value: 'You can still use `/banana` with free credits (5/day). Use `/api-key connect` to reconnect an API key anytime.',

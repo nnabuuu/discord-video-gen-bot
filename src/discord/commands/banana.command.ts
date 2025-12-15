@@ -119,7 +119,7 @@ export class BananaCommand {
 
           await interaction.editReply(
             `⏱️ You've reached your daily limit of 5 images. Please try again in ${timeStr}.\n\n` +
-            `💡 **Tip:** Use \`/api-key connect\` to bind your own SightAI API key for unlimited generations!`,
+            `💡 **Tip:** Use \`/api-key connect\` to bind your own AnyInt API key for unlimited generations!`,
           );
           return;
         }

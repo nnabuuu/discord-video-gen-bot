@@ -8,6 +8,8 @@ import { RateLimitModule } from './rate-limit/rate-limit.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './database/database.module';
 import { ApiModule } from './api/api.module';
+import { QwenImageModule } from './qwen-image/qwen-image.module';
+import { WanModule } from './wan/wan.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { ApiModule } from './api/api.module';
     BananaModule,
     DiscordModule,
     ApiModule,
+    QwenImageModule,
+    WanModule
   ],
 })
 export class AppModule {}

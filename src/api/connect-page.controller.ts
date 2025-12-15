@@ -49,12 +49,12 @@ export class ConnectPageController {
   <div class="container">
     <div class="card">
       <div class="logo">🍌</div>
-      <h1>Connect Your SightAI API Key</h1>
+      <h1>Connect Your AnyInt API Key</h1>
 
       <div class="security-warning">
         <span class="warning-icon">🔒</span>
         <div>
-          <strong>Security Check:</strong> Please verify you are on <code>https://app.sightai.io</code> before entering your API key to avoid phishing attacks.
+          <strong>Security Check:</strong> Please verify you are on <code>https://app.anyint.ai</code> before entering your API key to avoid phishing attacks.
         </div>
       </div>
 
@@ -71,14 +71,14 @@ export class ConnectPageController {
 
         <div id="connect-section" class="section">
           <h2 id="connect-title">Connect API Key</h2>
-          <p class="hint">Get your SightAI API key from <a href="https://gateway.sightai.io" target="_blank">gateway.sightai.io</a></p>
+          <p class="hint">Get your AnyInt API key from <a href="https://gateway.anyint.ai" target="_blank">gateway.anyint.ai</a></p>
 
           <div id="edit-button-wrapper" style="display: none;">
             <button type="button" id="edit-btn" class="btn-secondary">Modify API Key</button>
           </div>
 
           <form id="connect-form">
-            <input type="password" id="api-key" placeholder="Enter your SightAI API key" required>
+            <input type="password" id="api-key" placeholder="Enter your AnyInt API key" required>
             <div class="form-buttons">
               <button type="button" id="cancel-btn" class="btn-secondary" style="display: none;">Cancel</button>
               <button type="submit" id="submit-btn">Connect API Key</button>
