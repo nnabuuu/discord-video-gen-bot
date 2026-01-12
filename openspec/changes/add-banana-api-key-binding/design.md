@@ -1,6 +1,6 @@
 ## Context
 
-Users are limited to 5 image requests per day on the `/banana` command. Power users want to generate more images and are willing to provide their own Gemini API keys. The external service at app.sightai.io will handle the API key submission UI, while the Discord bot manages code generation and key storage.
+Users are limited to 5 image requests per day on the `/banana` command. Power users want to generate more images and are willing to provide their own Gemini API keys. The external service at app.anyint.ai will handle the API key submission UI, while the Discord bot manages code generation and key storage.
 
 ## Goals / Non-Goals
 

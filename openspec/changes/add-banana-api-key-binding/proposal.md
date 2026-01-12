@@ -6,7 +6,7 @@ Users hit the daily rate limit (5 images/day) on the `/banana` command and want 
 
 - Add `/api-key` command with subcommands: `status`, `connect`, `disconnect`
 - Create new `user_api_keys` database table to store connection codes and API keys
-- External service (app.sightai.io) handles API key submission via the generated URL
+- External service (app.anyint.ai) handles API key submission via the generated URL
 - Modify `/banana` command to use user's API key when available (after free credits exhausted)
 
 ## Impact
